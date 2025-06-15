@@ -1,12 +1,13 @@
 // lib/phone_mockup/reset_option.dart
 import 'package:flutter/material.dart';
 import 'clickable_outline.dart';
+import 'phone_mockup_container.dart'; // Import PhoneMockupContainer
 
 class ResetOptionScreen extends StatefulWidget {
   final VoidCallback onBack;
   final VoidCallback onNavigateToResetMobileNetwork;
   final void Function(BuildContext, Widget) showMockupDialog;
-  final void Function(String) showMockupToast;
+  final void Function(String message, {Duration duration}) showMockupToast;
   final VoidCallback dismissMockupDialog;
   final GlobalKey<ClickableOutlineState>? resetMobileNetworkKey;
 
@@ -50,6 +51,9 @@ class ResetOptionScreenState extends State<ResetOptionScreen> {
   }
 
   void _showResetDialog(BuildContext context) {
+    final PhoneMockupContainerState? phoneMockupState = context.findAncestorStateOfType<PhoneMockupContainerState>();
+    final ValueNotifier<String>? captionNotifier = phoneMockupState?.widget.currentCaption;
+
     widget.showMockupDialog(
       context,
       AlertDialog(
@@ -61,14 +65,18 @@ class ResetOptionScreenState extends State<ResetOptionScreen> {
         ),
         actions: <Widget>[
           TextButton(
+            onPressed: () {
+              widget.dismissMockupDialog();
+              captionNotifier?.value = 'You chose to cancel the Wi-Fi and Bluetooth reset.'; // Conversational caption
+            },
             child: Text('CANCEL', style: TextStyle(color: Theme.of(context).primaryColor)),
-            onPressed: widget.dismissMockupDialog,
           ),
           TextButton(
             child: Text('RESET', style: TextStyle(color: Theme.of(context).primaryColor)),
             onPressed: () {
               widget.dismissMockupDialog();
               widget.showMockupToast('Wi-Fi & Bluetooth settings have been reset.');
+              captionNotifier?.value = 'Great! Wi-Fi and Bluetooth settings have been reset.'; // Conversational caption
               print('Resetting Bluetooth & Wi-Fi settings...');
             },
           ),
@@ -79,6 +87,9 @@ class ResetOptionScreenState extends State<ResetOptionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final PhoneMockupContainerState? phoneMockupState = context.findAncestorStateOfType<PhoneMockupContainerState>();
+    final ValueNotifier<String>? captionNotifier = phoneMockupState?.widget.currentCaption;
+
     return Scaffold(
       backgroundColor: Colors.blueGrey[50],
       appBar: AppBar(
@@ -118,6 +129,8 @@ class ResetOptionScreenState extends State<ResetOptionScreen> {
                   print('$option tapped');
                 }
               },
+              captionNotifier: captionNotifier,
+              caption: 'Tap on "$option" to proceed.', // Conversational caption
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 24.0, vertical: 12.0),

@@ -1,3 +1,4 @@
+// lib/phone_mockup/app_grid.dart
 import 'package:flutter/material.dart';
 import 'dart:io'; // Import for File
 import 'dart:math'; // Import for Random
@@ -12,10 +13,6 @@ class AppGrid extends StatefulWidget {
   final File? wallpaperImage; // Added wallpaper image parameter
   final AppItemTapCallback? onAppTap;
 
-  // widget.key will be AppGrid's own key, passed as widget.appGridKey from PhoneMockupContainer
-  // So, it's fine to use super.key here if AppGrid itself needs a key from its parent.
-  // However, the key for AppGridState is what's important for PhoneMockupContainer to access AppGridState.
-  // Let's assume super.key is the key for AppGrid widget itself.
   const AppGrid({
     super.key,
     required this.phoneMockupKey,
@@ -46,6 +43,33 @@ class AppGridState extends State<AppGrid> {
     _loadIconsFromAssets(); // Call the new method
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  String _generateRandomAppSize() {
+    final random = Random();
+    final units = ['KB', 'MB', 'GB'];
+    String unit = units[random.nextInt(units.length)];
+    double size;
+
+    if (unit == 'KB') {
+      size = (random.nextInt(900) + 100).toDouble(); // 100-999 KB
+      return '${size.toInt()} KB';
+    } else if (unit == 'MB') {
+      size = random.nextDouble() * 500 + 1; // 1.0 - 500.9 MB
+      if (random.nextBool()) { // Occasionally make it a whole number
+          return '${size.toInt()} MB';
+      }
+      return '${size.toStringAsFixed(1)} MB';
+    } else { // GB
+      size = random.nextDouble() * 5 + 0.5; // 0.5 - 5.4 GB
+      return '${size.toStringAsFixed(1)} GB';
+    }
+  }
+
   Future<void> _loadIconsFromAssets() async {
     try {
       final manifestContent = await rootBundle.loadString('AssetManifest.json');
@@ -56,29 +80,16 @@ class AppGridState extends State<AppGrid> {
 
       for (var key in manifestMap.keys) {
         if (key.startsWith('assets/icons/') && !existingIconPaths.contains(key)) {
-          // Extract icon name
-          // e.g., assets/icons/my_app.png -> my_app
-          // e.g., assets/icons/my app.png -> my app
           String namePart = key.substring('assets/icons/'.length);
-          // Remove extension (e.g., .png, .jpg, .jpeg, .gif, .webp)
           final dotIndex = namePart.lastIndexOf('.');
           if (dotIndex != -1) {
             namePart = namePart.substring(0, dotIndex);
           }
-          // Replace underscores with spaces for a cleaner name if desired, or keep as is.
-          // For this example, let's keep underscores if they are there,
-          // but the main goal is to handle spaces in filenames correctly.
-          // The problem description implies 'my_app' from 'my_app.png' and 'my app' from 'my app.png'.
-          // The current logic achieves this.
-
           newlyFoundIcons.add({'name': namePart, 'icon': key});
         }
       }
 
       if (newlyFoundIcons.isNotEmpty) {
-        // Filter out icons that might already be in _apps if _loadIconsFromAssets is called multiple times
-        // or if some icons were added by other means before this completes.
-        // This check is more robust if names are guaranteed unique.
         final currentAppNames = _apps.map((app) => app['name']).toSet();
         final trulyNewIcons = newlyFoundIcons.where((icon) => !currentAppNames.contains(icon['name'])).toList();
 
@@ -87,7 +98,6 @@ class AppGridState extends State<AppGrid> {
         }
       }
     } catch (e) {
-      // Handle errors, e.g., AssetManifest.json not found or parsing error
       print('Error loading icons from assets: $e');
     }
   }
@@ -95,28 +105,23 @@ class AppGridState extends State<AppGrid> {
   void addIcons(List<Map<String, String>> newIcons) {
     setState(() {
       for (var iconData in newIcons) {
-        // Ensure 'name' and 'icon' path are present
         if (iconData['name'] == null || iconData['icon'] == null) {
-          // Handle error or skip this icon
           print("Skipping icon due to missing name or icon path: $iconData");
           continue;
         }
 
-        // Generate random sizes
-        final double appSizeMB = _random.nextDouble() * (200 - 50) + 50; // Example range
+        final double appSizeMB = _random.nextDouble() * (200 - 50) + 50;
         final double dataSizeMB = _random.nextDouble() * (100 - 10) + 10;
         final double cacheSizeMB = _random.nextDouble() * (50 - 5) + 5;
         final double totalSizeMB = appSizeMB + dataSizeMB + cacheSizeMB;
 
-        // Add/update icon data with sizes
         iconData['appSize'] = '${appSizeMB.toStringAsFixed(1)} MB';
         iconData['dataSize'] = '${dataSizeMB.toStringAsFixed(1)} MB';
         iconData['cacheSize'] = '${cacheSizeMB.toStringAsFixed(1)} MB';
         iconData['totalSize'] = '${totalSizeMB.toStringAsFixed(1)} MB';
         
-        // Add a placeholder version if not provided
         if (iconData['version'] == null) {
-          iconData['version'] = '1.0.0'; // Default version
+          iconData['version'] = '1.0.0';
         }
 
         _apps.add(iconData);
@@ -161,11 +166,11 @@ class AppGridState extends State<AppGrid> {
     }
   }
 
-  // (Keep _initialApps and _generateRandomAppSizes as they are)
   static const List<Map<String, String>> _initialApps = [
     {'name': 'Chrome', 'icon': 'assets/icons/chrome.png', 'version': '124.0.0.0'},
     {'name': 'Gmail', 'icon': 'assets/icons/gmail.png', 'version': '2024.04.28.623192461'},
     {'name': 'Maps', 'icon': 'assets/icons/maps.png', 'version': '11.125.0101'},
+     {'name': 'Settings', 'icon': 'assets/icons/settings.png', 'version': '1.0.0'},
     {'name': 'Photos', 'icon': 'assets/icons/photos.png', 'version': '6.84.0.621017366'},
     {'name': 'YouTube', 'icon': 'assets/icons/youtube.png', 'version': '19.18.33'},
     {'name': 'Drive', 'icon': 'assets/icons/drive.png', 'version': '2.24.167.0.90'},
@@ -189,7 +194,7 @@ class AppGridState extends State<AppGrid> {
     {'name': 'TikTok', 'icon': 'assets/icons/tiktok.png', 'version': '34.8.4'},
     {'name': 'Pinterest', 'icon': 'assets/icons/pinterest.png', 'version': '11.20.0'},
     {'name': 'Amazon', 'icon': 'assets/icons/amazon.png', 'version': '25.21.1.800'},
-    {'name': 'Settings', 'icon': 'assets/icons/settings.png', 'version': '1.0.0'},
+   
   ];
 
   List<Map<String, String>> _generateRandomAppSizes(List<Map<String, String>> apps) {
@@ -228,11 +233,15 @@ class AppGridState extends State<AppGrid> {
       final int randomDurationMs = _random.nextInt(1001) + 500; // 500ms to 1500ms
       final Curve randomCurve = curves[_random.nextInt(curves.length)];
 
-      await _scrollController.animateTo(
-        randomPosition,
-        duration: Duration(milliseconds: randomDurationMs),
-        curve: randomCurve,
-      );
+      // Removed: captionNotifier?.value = 'Randomly scrolling...';
+
+      if (_scrollController.hasClients) {
+        await _scrollController.animateTo(
+          randomPosition,
+          duration: Duration(milliseconds: randomDurationMs),
+          curve: randomCurve,
+        );
+      }
       await Future.delayed(Duration(milliseconds: randomDurationMs)); // Wait for animation
     }
 
@@ -244,11 +253,69 @@ class AppGridState extends State<AppGrid> {
       // Ensure the offset does not exceed maxScrollExtent
       final double targetOffset = min(offset, maxScroll);
       
-      _scrollController.animateTo(
-        targetOffset,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
+      // Removed: captionNotifier?.value = 'Scrolling to "$appName".';
+
+      if (_scrollController.hasClients) {
+        await _scrollController.animateTo(
+          targetOffset,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+
+      // --- NEW: Ensure visibility below notification panel ---
+      await _ensureAppVisibleAfterScroll(appName);
+    }
+  }
+
+  // NEW METHOD: Ensures the app is visible below the notification drawer
+  // This method is now correctly placed within AppGridState.
+  Future<void> _ensureAppVisibleAfterScroll(String appName) async {
+    final GlobalKey<ClickableOutlineState>? appKey = appItemKeys[appName];
+    if (appKey == null || appKey.currentContext == null) return;
+
+    // Wait for the UI to rebuild after the initial scroll animation
+    // This is important to get accurate render box information.
+    await Future.delayed(const Duration(milliseconds: 50));
+    if (!mounted) return;
+
+    final RenderBox renderBox = appKey.currentContext!.findRenderObject() as RenderBox;
+    final Offset appPosition = renderBox.localToGlobal(Offset.zero);
+
+    // Get the current height of the notification drawer from the PhoneMockupContainerState
+    final double currentNotificationDrawerHeight = widget.phoneMockupKey.currentState?.currentNotificationDrawerHeight ?? 0.0;
+
+    // Calculate app's Y position relative to the top of the phone mockup content area
+    // The phone mockup's content starts below the status bar (30px).
+    final phoneMockupRenderBox = widget.phoneMockupKey.currentContext?.findRenderObject() as RenderBox?;
+    if (phoneMockupRenderBox == null) return;
+    final Offset phoneMockupGlobalPosition = phoneMockupRenderBox.localToGlobal(Offset.zero);
+
+    // appPosition.dy is global. Subtract phoneMockupGlobalPosition.dy to get relative position within mockup.
+    // Then subtract the status bar height (30px) to get position relative to the scrollable content area.
+    final double appYRelativeToPhoneContent = appPosition.dy - (phoneMockupGlobalPosition.dy + 30.0); // 30.0 is status bar height
+
+    // The threshold should be the bottom edge of the notification drawer when it's open.
+    // Plus some buffer to ensure the app is comfortably visible.
+    const double buffer = 20.0; // A small buffer so the app isn't right at the edge
+
+    if (appYRelativeToPhoneContent < currentNotificationDrawerHeight + buffer) {
+      final double scrollAmount = (currentNotificationDrawerHeight + buffer) - appYRelativeToPhoneContent;
+      final double newOffset = _scrollController.offset + scrollAmount;
+
+      // Ensure newOffset does not exceed maxScrollExtent
+      final double finalOffset = min(newOffset, _scrollController.position.maxScrollExtent);
+
+      if (_scrollController.offset != finalOffset) {
+        // Removed: widget.phoneMockupKey.currentState?.widget.currentCaption.value = 'Adjusting scroll to make "$appName" visible.';
+        if (_scrollController.hasClients) {
+          await _scrollController.animateTo(
+            finalOffset,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      }
     }
   }
 
@@ -260,19 +327,18 @@ class AppGridState extends State<AppGrid> {
 
     final DateTime overallStartTime = DateTime.now();
     final double maxScroll = _scrollController.position.maxScrollExtent;
-    final List<Curve> curves = [ // Same curves as in scrollToApp, or a subset for "slower" feel
+    final List<Curve> curves = [
       Curves.easeInOut, Curves.linear, Curves.easeInQuad, Curves.easeOutQuad
     ];
 
     print("AppGridState: Starting slow random scroll for ${totalDuration.inSeconds} seconds.");
+    // Removed: phoneMockupKey.currentState?.widget.currentCaption.value = "Performing slow random scroll...";
+
 
     while (DateTime.now().difference(overallStartTime) < totalDuration) {
-      // 1. Determine scroll animation duration (0.5s to 1.5s)
-      final int scrollAnimMillis = _random.nextInt(1001) + 500; // 500ms to 1500ms
-
-      // Check if remaining time is less than this scroll animation
+      final int scrollAnimMillis = _random.nextInt(1001) + 500;
       if (DateTime.now().difference(overallStartTime) + Duration(milliseconds: scrollAnimMillis) > totalDuration) {
-        break; // Not enough time for a full scroll animation, exit loop
+        break;
       }
 
       final double randomPosition = _random.nextDouble() * maxScroll;
@@ -284,26 +350,21 @@ class AppGridState extends State<AppGrid> {
         duration: Duration(milliseconds: scrollAnimMillis),
         curve: randomCurve,
       );
-      // Wait for scroll animation to complete (already awaited by animateTo, but an explicit delay can also be used if animateTo doesn't await completion reliably in all contexts)
-      // await Future.delayed(Duration(milliseconds: scrollAnimMillis)); // animateTo is a Future, so it's awaited.
 
-      // Check remaining time again before pause
       if (DateTime.now().difference(overallStartTime) >= totalDuration) {
         break; 
       }
 
-      // 2. Determine pause duration (0.5s to 2s)
-      final int pauseMillis = _random.nextInt(1501) + 500; // 500ms to 2000ms
-
-      // Check if remaining time is less than this pause
+      final int pauseMillis = _random.nextInt(1501) + 500;
       if (DateTime.now().difference(overallStartTime) + Duration(milliseconds: pauseMillis) > totalDuration) {
-        break; // Not enough time for a full pause, exit loop
+        break;
       }
       
       print("AppGridState: Pausing for ${pauseMillis}ms.");
       await Future.delayed(Duration(milliseconds: pauseMillis));
     }
     print("AppGridState: Finished slow random scroll.");
+    // Removed: phoneMockupKey.currentState?.widget.currentCaption.value = "Finished random scrolling.";
   }
 
   @override
@@ -332,9 +393,8 @@ class AppGridState extends State<AppGrid> {
         itemBuilder: (context, index) {
           final app = _apps[index];
           final appName = app['name']!;
-          final String iconPath = app['icon']!; // Ensure iconPath is not null
+          final String iconPath = app['icon']!;
 
-          // Determine if the icon is an asset or a file
           Widget iconWidget;
           if (iconPath.startsWith('assets/')) {
             iconWidget = Image.asset(
@@ -344,55 +404,52 @@ class AppGridState extends State<AppGrid> {
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
                 print("Error loading asset: $iconPath");
-                return const Icon(Icons.broken_image, size: 48); // Placeholder for broken asset
+                return const Icon(Icons.broken_image, size: 48);
               },
             );
           } else {
             iconWidget = Image.file(
-              File(iconPath), // Create a File object
+              File(iconPath),
               width: 48,
               height: 48,
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) {
-                // Handle potential errors if the file path is invalid or image is corrupt
                 print("Error loading file: $iconPath - $error");
-                return const Icon(Icons.broken_image, size: 48); // Placeholder for broken file image
+                return const Icon(Icons.broken_image, size: 48);
               },
             );
           }
 
-          // Ensure key exists, though initState should guarantee it.
           final GlobalKey<ClickableOutlineState> itemKey = appItemKeys[appName] ?? (appItemKeys[appName] = GlobalKey<ClickableOutlineState>());
 
-
           Future<void> appAction() async {
-            // This is the action that will be triggered by the ClickableOutline
-            // For app icons, this is typically a long press action.
             widget.phoneMockupKey.currentState?.handleAppLongPress(app);
           }
 
           return ClickableOutline(
             key: itemKey,
             action: appAction,
+            // Removed specificCaption and caption here to rely on parent's _handleStep
+            // or specific actions set by phone_mockup_container
             child: GestureDetector(
               onTap: () {
                 if (widget.onAppTap != null) {
+                  // The actual caption will be set by handleItemTap in phone_mockup_container
                   widget.onAppTap!(app['name']!, itemDetails: app);
                 } else {
-                  // Fallback or error, though onAppTap should ideally be provided
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text("Tap action not configured for ${app['name']}.")),
                   );
                 }
               },
               onLongPress: () {
-                // Manual long press should behave like the automated action.
+                // The actual caption will be set by handleAppLongPress in phone_mockup_container
                 widget.phoneMockupKey.currentState?.handleAppLongPress(app);
               },
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  iconWidget, // Use the determined iconWidget
+                  iconWidget,
                   const SizedBox(height: 8),
                   Text(
                     appName.length > 9 ? '${appName.substring(0, 9)}...' : appName,

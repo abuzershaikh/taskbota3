@@ -37,6 +37,8 @@ class NotificationDrawerState extends State<NotificationDrawer> {
   bool _darkMode = false;
   double _brightnessValue = 0.6;
 
+  get currentDrawerHeight => null;
+
 
   void openDrawer() {
     setState(() {

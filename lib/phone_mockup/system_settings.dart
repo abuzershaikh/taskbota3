@@ -1,6 +1,7 @@
 // lib/phone_mockup/system_settings.dart
 import 'package:flutter/material.dart';
 import 'clickable_outline.dart';
+import 'phone_mockup_container.dart'; // Import PhoneMockupContainer to access ValueNotifier
 
 class SystemSettingsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -83,6 +84,9 @@ class SystemSettingsScreenState extends State<SystemSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final PhoneMockupContainerState? phoneMockupState = context.findAncestorStateOfType<PhoneMockupContainerState>();
+    final ValueNotifier<String>? captionNotifier = phoneMockupState?.widget.currentCaption;
+
     return Scaffold(
       backgroundColor: Colors.blueGrey[50],
       appBar: AppBar(
@@ -99,7 +103,9 @@ class SystemSettingsScreenState extends State<SystemSettingsScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: Colors.black),
-            onPressed: () {},
+            onPressed: () {
+              captionNotifier?.value = 'Tapping Search icon in System settings.';
+            },
           ),
         ],
       ),
@@ -126,6 +132,8 @@ class SystemSettingsScreenState extends State<SystemSettingsScreen> {
                   print('${item['title']} tapped');
                 }
               },
+              captionNotifier: captionNotifier,
+              caption: 'Tapping "${item['title']}" in System settings.',
               child: ListTile(
                 contentPadding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
                 leading: Icon(

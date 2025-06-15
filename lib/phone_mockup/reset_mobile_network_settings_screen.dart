@@ -1,6 +1,7 @@
 // lib/phone_mockup/reset_mobile_network_settings_screen.dart
 import 'package:flutter/material.dart';
 import 'clickable_outline.dart';
+import 'phone_mockup_container.dart'; // Import PhoneMockupContainer
 
 class ResetMobileNetworkSettingsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -35,15 +36,20 @@ class ResetMobileNetworkSettingsScreenState
   }
 
   void _handleReset() {
+    final PhoneMockupContainerState? phoneMockupState = context.findAncestorStateOfType<PhoneMockupContainerState>();
+    final ValueNotifier<String>? captionNotifier = phoneMockupState?.widget.currentCaption;
+
     if (!_isConfirmationStep) {
       setState(() {
         _isConfirmationStep = true;
       });
+      captionNotifier?.value = 'Please tap "Reset settings" to confirm this action.'; // Conversational caption
     } else {
       widget.showInternalToast(
         'Network settings have been reset',
         duration: const Duration(seconds: 2),
       );
+      captionNotifier?.value = 'Perfect! Your network settings have been reset.'; // Conversational caption
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
           widget.onBack();
@@ -54,6 +60,9 @@ class ResetMobileNetworkSettingsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final PhoneMockupContainerState? phoneMockupState = context.findAncestorStateOfType<PhoneMockupContainerState>();
+    final ValueNotifier<String>? captionNotifier = phoneMockupState?.widget.currentCaption;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -104,6 +113,8 @@ class ResetMobileNetworkSettingsScreenState
                 action: () async {
                   _handleReset();
                 },
+                captionNotifier: captionNotifier,
+                caption: _isConfirmationStep ? 'Go ahead and tap "Reset settings" one more time to confirm.' : 'Tap "Reset settings" to continue.', // Conversational caption
                 child: ElevatedButton(
                   onPressed: () {
                     _buttonKey.currentState?.triggerOutlineAndAction();

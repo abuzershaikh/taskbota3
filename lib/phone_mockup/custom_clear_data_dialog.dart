@@ -1,6 +1,7 @@
 // File: lib/phone_mockup/custom_clear_data_dialog.dart
 import 'package:flutter/material.dart';
-import 'clickable_outline.dart'; // Added import
+import 'clickable_outline.dart';
+// Import PhoneMockupContainer
 
 class CustomClearDataDialog extends StatelessWidget {
   final String title;
@@ -13,17 +14,19 @@ class CustomClearDataDialog extends StatelessWidget {
   // Keys for ClickableOutline
   final GlobalKey<ClickableOutlineState> cancelKey;
   final GlobalKey<ClickableOutlineState> confirmKey;
+  final ValueNotifier<String>? captionNotifier; // New: Optional caption notifier
 
   const CustomClearDataDialog({
     super.key,
     required this.title,
     required this.content,
     required this.confirmButtonText,
-    this.confirmButtonColor = Colors.red, // Default to red for delete/clear
+    this.confirmButtonColor = Colors.red,
     required this.onConfirm,
     required this.onCancel,
     required this.cancelKey,
     required this.confirmKey,
+    this.captionNotifier, // New: Add to constructor
   });
 
   @override
@@ -47,8 +50,10 @@ class CustomClearDataDialog extends StatelessWidget {
         ClickableOutline(
           key: cancelKey,
           action: () async => onCancel(),
+          captionNotifier: captionNotifier, // Pass notifier
+          caption: 'Tapping "Cancel" in dialog.', // Specific caption
           child: TextButton(
-            onPressed: onCancel, // Keep direct tap for normal user interaction
+            onPressed: onCancel,
             child: const Text(
               'Cancel',
               style: TextStyle(color: Colors.blue),
@@ -58,8 +63,10 @@ class CustomClearDataDialog extends StatelessWidget {
         ClickableOutline(
           key: confirmKey,
           action: () async => onConfirm(),
+          captionNotifier: captionNotifier, // Pass notifier
+          caption: 'Tapping "$confirmButtonText" in dialog.', // Specific caption
           child: TextButton(
-            onPressed: onConfirm, // Keep direct tap for normal user interaction
+            onPressed: onConfirm,
             child: Text(
               confirmButtonText,
               style: TextStyle(color: confirmButtonColor),

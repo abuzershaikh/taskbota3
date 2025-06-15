@@ -1,7 +1,7 @@
 // lib/phone_mockup/settings_screen.dart
 import 'package:flutter/material.dart';
 import 'clickable_outline.dart';
-import 'phone_mockup_container.dart';
+import 'phone_mockup_container.dart'; // Import PhoneMockupContainer to access ValueNotifier
 
 class SettingsScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -75,20 +75,24 @@ class SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> scrollToEnd() async {
-    // Retry mechanism to ensure the scroll controller is attached before use.
+    final PhoneMockupContainerState? phoneMockupState = context.findAncestorStateOfType<PhoneMockupContainerState>();
+    final ValueNotifier<String>? captionNotifier = phoneMockupState?.widget.currentCaption;
+
     int retries = 5;
     while (retries > 0 && !_scrollController.hasClients) {
       print("Scroll controller not attached yet, waiting... ($retries retries left)");
+      captionNotifier?.value = "Waiting for Settings screen to be ready for scroll.";
       await Future.delayed(const Duration(milliseconds: 100));
       retries--;
     }
 
     if (!_scrollController.hasClients) {
       print("Error: ScrollController could not attach to a view. Cannot scroll.");
+      captionNotifier?.value = "Error: Settings screen cannot be scrolled.";
       return;
     }
     
-    // Animate to the bottom of the scroll view.
+    captionNotifier?.value = "Scrolling to the end of Settings.";
     await _scrollController.animateTo(
       _scrollController.position.maxScrollExtent,
       duration: const Duration(milliseconds: 800),
@@ -98,6 +102,9 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final PhoneMockupContainerState? phoneMockupState = context.findAncestorStateOfType<PhoneMockupContainerState>();
+    final ValueNotifier<String>? captionNotifier = phoneMockupState?.widget.currentCaption;
+
     return Material(
       color: Colors.blueGrey[50],
       child: Scaffold(
@@ -123,13 +130,13 @@ class SettingsScreenState extends State<SettingsScreen> {
               sliver: SliverList(
                 delegate: SliverChildListDelegate(
                   [
-                    _buildSettingsCard(context, primarySettingsData),
+                    _buildSettingsCard(context, primarySettingsData, captionNotifier),
                     const SizedBox(height: 16),
-                    _buildSettingsCard(context, displaySettingsData),
+                    _buildSettingsCard(context, displaySettingsData, captionNotifier),
                     const SizedBox(height: 16),
-                    _buildSettingsCard(context, appSecuritySettingsData),
+                    _buildSettingsCard(context, appSecuritySettingsData, captionNotifier),
                     const SizedBox(height: 16),
-                    _buildSettingsCard(context, moreSettingsData),
+                    _buildSettingsCard(context, moreSettingsData, captionNotifier),
                     // Add a spacer at the end to ensure the list is always scrollable.
                     const SizedBox(height: 150),
                   ],
@@ -142,7 +149,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildSettingsCard(BuildContext context, List<Map<String, dynamic>> items) {
+  Widget _buildSettingsCard(BuildContext context, List<Map<String, dynamic>> items, ValueNotifier<String>? captionNotifier) {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 1,
@@ -183,6 +190,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                       print('Tap action not configured for $itemTitle');
                     }
                   },
+                  captionNotifier: captionNotifier, // Pass notifier
+                  caption: 'Tapping "$itemTitle" in Settings.', // Set specific caption
                   child: ListTile(
                     dense: true,
                     horizontalTitleGap: 12.0,

@@ -1,12 +1,13 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
- 
-import 'package:flutter_box_transform/flutter_box_transform.dart'; // Import flutter_box_transform
-import 'phone_mockup/app_grid.dart'; // Import for AppGridState
+import 'package:flutter_box_transform/flutter_box_transform.dart';
 import 'package:phone_ui_training/phone_mockup/phone_mockup_container.dart';
+import 'phone_mockup/app_grid.dart';
 import 'dart:io';
 import 'tool_drawer.dart';
 import 'command_service.dart';
 import 'command_controller.dart';
+import 'caption_display.dart'; // Import the new caption display widget
 
 void main() {
   runApp(const MyApp());
@@ -20,12 +21,13 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  // Initialize GlobalKeys as instance variables
   final GlobalKey<PhoneMockupContainerState> _phoneMockupKey = GlobalKey<PhoneMockupContainerState>();
-  final GlobalKey<AppGridState> _appGridKey = GlobalKey<AppGridState>(); // Correctly typed key for AppGrid
+  final GlobalKey<AppGridState> _appGridKey = GlobalKey<AppGridState>();
 
   late final CommandService _commandService;
   late final CommandController _commandController;
+
+  final ValueNotifier<String> _currentCaption = ValueNotifier<String>('No action yet.'); // New ValueNotifier for caption
 
   File? _backgroundImage;
   File? _pickedImage;
@@ -34,12 +36,11 @@ class _MyAppState extends State<MyApp> {
   double _imageScale = 1.0;
   double _lastScale = 1.0;
 
-  // State variables for the frame image
   @visibleForTesting
   File? _frameImage;
-  Rect? _frameRect; // Using Rect for flutter_box_transform
+  Rect? _frameRect;
 
-  File? _mockupWallpaperImage; // Added mockup wallpaper image state
+  File? _mockupWallpaperImage;
 
   bool _isToolDrawerOpen = false;
 
@@ -55,28 +56,23 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
-  void _onMockupWallpaperChanged(File? newImage) { // Added callback for mockup wallpaper
+  void _onMockupWallpaperChanged(File? newImage) {
     setState(() {
       _mockupWallpaperImage = newImage;
     });
   }
 
-  // Method to handle frame image changes
   @visibleForTesting
   void _onFrameImageChanged(File? newFrameImage) {
     setState(() {
       _frameImage = newFrameImage;
       if (newFrameImage == null) {
-        _frameRect = null; // Clear rect if image is removed
+        _frameRect = null;
       } else {
-        // Initial rect will be set in build method when context is available
-        // to correctly center it. For now, just nullify it so build can init.
-        _frameRect = null; 
+        _frameRect = null;
       }
     });
   }
-
-  // _onFramePan and _onFrameScale are no longer needed as TransformableBox handles this.
 
   void _onImagePan(double dx, double dy) {
     setState(() {
@@ -95,7 +91,6 @@ class _MyAppState extends State<MyApp> {
   void _toggleToolDrawer() {
     setState(() {
       _isToolDrawerOpen = !_isToolDrawerOpen;
-      // print('main.dart: Tool Drawer toggled. Open: $_isToolDrawerOpen');
     });
   }
 
@@ -103,7 +98,6 @@ class _MyAppState extends State<MyApp> {
     if (_isToolDrawerOpen) {
       setState(() {
         _isToolDrawerOpen = false;
-        // print('main.dart: Tool Drawer closed via callback.');
       });
     }
   }
@@ -132,6 +126,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void dispose() {
     _commandService.stopPolling();
+    _currentCaption.dispose(); // Dispose the ValueNotifier
     super.dispose();
   }
 
@@ -140,11 +135,12 @@ class _MyAppState extends State<MyApp> {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     const double imageBaseSize = 100.0;
-    const double frameBaseSize = 300.0; // Base size for the frame
-    const double kTransparentHandleSize = 24.0; // Default handleTapSize is 24.0
-    // print(
-    //   'main.dart: build method called. Screen size: $screenWidth x $screenHeight',
-    // );
+    const double frameBaseSize = 300.0;
+    const double kTransparentHandleSize = 24.0;
+    const double phoneMockupWidth = 300.0; // Defined in PhoneMockupContainer
+    const double captionDisplayWidth = 250.0; // Defined in CaptionDisplay
+    const double captionDisplayHeight = 150.0; // Defined in CaptionDisplay
+    const double spacing = 20.0;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -159,13 +155,24 @@ class _MyAppState extends State<MyApp> {
                   ),
                 )
               : const BoxDecoration(
-                  color: Colors.grey, // Default background color
+                  color: Colors.grey,
                 ),
           child: Stack(
             children: [
-              Align(
-                alignment: Alignment.center,
- child: PhoneMockupContainer(key: _phoneMockupKey, appGridKey: _appGridKey, mockupWallpaperImage: _mockupWallpaperImage,), // Pass the key and mockup wallpaper
+              // Phone Mockup - Centered
+              Center(
+                child: PhoneMockupContainer(
+                  key: _phoneMockupKey,
+                  appGridKey: _appGridKey,
+                  mockupWallpaperImage: _mockupWallpaperImage,
+                  currentCaption: _currentCaption,
+                ),
+              ),
+              // Caption Display - Positioned to the right of the centered mockup
+              Positioned(
+                left: (screenWidth / 2) + (phoneMockupWidth / 2) + spacing,
+                top: (screenHeight / 2) - (captionDisplayHeight / 2),
+                child: CaptionDisplay(currentCaption: _currentCaption),
               ),
 
               if (_pickedImage != null)
@@ -202,13 +209,10 @@ class _MyAppState extends State<MyApp> {
                 ),
               ),
             
-            // Display the Frame Image using TransformableBox
             if (_frameImage != null) ...[
-              Builder( // Use Builder to ensure context for MediaQuery is up-to-date
+              Builder(
                 builder: (context) {
                   if (_frameRect == null) {
-                    // Initialize _frameRect here if it's null (e.g., after image pick)
-                    // This ensures screenWidth and screenHeight are available from a current context.
                     final currentScreenWidth = MediaQuery.of(context).size.width;
                     final currentScreenHeight = MediaQuery.of(context).size.height;
                     _frameRect = Rect.fromLTWH(
@@ -218,12 +222,11 @@ class _MyAppState extends State<MyApp> {
                       frameBaseSize,
                     );
                   }
-                  // Ensure _frameRect is not null before building TransformableBox
                   if (_frameRect == null) return const SizedBox.shrink();
 
                   return TransformableBox(
                     rect: _frameRect!,
-                    onChanged: (UITransformResult result, DragUpdateDetails? event) { // Corrected signature
+                    onChanged: (UITransformResult result, DragUpdateDetails? event) {
                       setState(() {
                         _frameRect = result.rect;
                       });
@@ -231,7 +234,7 @@ class _MyAppState extends State<MyApp> {
                     contentBuilder: (BuildContext context, Rect rect, Flip flip) {
                       return Image.file(
                         _frameImage!,
-                        fit: BoxFit.fill, // Fill the bounds of the TransformableBox
+                        fit: BoxFit.fill,
                         width: rect.width,
                         height: rect.height,
                       );
@@ -255,7 +258,6 @@ class _MyAppState extends State<MyApp> {
               ),
             ],
 
-            // Tool Drawer Toggle Button
             Positioned(
               right: 20,
               
@@ -268,7 +270,6 @@ class _MyAppState extends State<MyApp> {
               ),
             ),
 
-            // The Tool Drawer Itself
             AnimatedPositioned(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeInOut,
@@ -278,16 +279,16 @@ class _MyAppState extends State<MyApp> {
               child: ToolDrawer(
                 pickedImage: _pickedImage,
                 onImageChanged: _onImageChanged,
-                onFrameImageChanged: _onFrameImageChanged, // Pass the new callback
+                onFrameImageChanged: _onFrameImageChanged,
                 onImagePan: _onImagePan,
                 onImageScale: _onImageScale,
                 currentImageScale: _imageScale,
                 onClose: _closeToolDrawer,
                 onWallpaperChanged: _onWallpaperChanged,
                 onRemoveWallpaper: _removeWallpaper,
-                onMockupWallpaperChanged: _onMockupWallpaperChanged, // Pass the new callback
-                phoneMockupKey: _phoneMockupKey, // Pass instance variable _phoneMockupKey
-                appGridKey: _appGridKey,       // Pass instance variable _appGridKey
+                onMockupWallpaperChanged: _onMockupWallpaperChanged,
+                phoneMockupKey: _phoneMockupKey,
+                appGridKey: _appGridKey,
               ),
             ),
           ],

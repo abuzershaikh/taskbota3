@@ -1,17 +1,14 @@
- 
- 
-import 'dart:io'; // Added for File class
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'clickable_outline.dart'; // Added import
+import 'clickable_outline.dart';
+import 'phone_mockup_container.dart'; // Import PhoneMockupContainer
 
 class CustomAppActionDialog extends StatelessWidget {
   final Map<String, String> app;
   final Function(String actionName, Map<String, String> appDetails) onActionSelected;
 
-  // Keys for ClickableOutline
   final GlobalKey<ClickableOutlineState> appInfoKey;
   final GlobalKey<ClickableOutlineState> uninstallKey;
-  // final GlobalKey<ClickableOutlineState> forceStopKey; // Force stop not in current UI
 
   const CustomAppActionDialog({
     super.key,
@@ -19,7 +16,6 @@ class CustomAppActionDialog extends StatelessWidget {
     required this.onActionSelected,
     required this.appInfoKey,
     required this.uninstallKey,
-    // required this.forceStopKey,
   });
 
   @override
@@ -37,7 +33,7 @@ class CustomAppActionDialog extends StatelessWidget {
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           print("Error loading asset in CustomAppActionDialog: $iconPath - $error");
-          return const Icon(Icons.broken_image, size: 60); // Placeholder
+          return const Icon(Icons.broken_image, size: 60);
         },
       );
     } else {
@@ -48,10 +44,13 @@ class CustomAppActionDialog extends StatelessWidget {
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           print("Error loading file in CustomAppActionDialog: $iconPath - $error");
-          return const Icon(Icons.broken_image, size: 60); // Placeholder
+          return const Icon(Icons.broken_image, size: 60);
         },
       );
     }
+
+    final PhoneMockupContainerState? phoneMockupState = context.findAncestorStateOfType<PhoneMockupContainerState>();
+    final ValueNotifier<String>? captionNotifier = phoneMockupState?.widget.currentCaption;
 
     return Center(
       child: Material(
@@ -61,7 +60,7 @@ class CustomAppActionDialog extends StatelessWidget {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: iconWidget, // Use the dynamic iconWidget here
+              child: iconWidget,
             ),
             const SizedBox(height: 10),
             Text(
@@ -87,30 +86,40 @@ class CustomAppActionDialog extends StatelessWidget {
                       key: appInfoKey,
                       icon: Icons.info_outline,
                       text: 'App info',
-                      onTap: () => onActionSelected('App info', app),
+                      onTap: () {
+                        onActionSelected('App info', app);
+                        captionNotifier?.value = 'You\'ve selected "App info" for ${app['name']}.'; // Conversational caption
+                      },
+                      captionNotifier: captionNotifier,
+                      caption: 'Tap "App info" to see details about the app.', // Conversational caption
                     ),
                     const Divider(height: 1, color: Colors.grey),
-                    // "Pause app" - not requested for key management
                     _buildDialogOption(Icons.pause_circle_outline, 'Pause app', () {
                       onActionSelected('Pause app', app);
-                    }),
+                      captionNotifier?.value = 'You chose to "Pause app" for ${app['name']}.'; // Conversational caption
+                    }, captionNotifier),
                     const Divider(height: 1, color: Colors.grey),
                     _buildDialogOptionWithKey(
                       key: uninstallKey,
                       icon: Icons.delete_outline,
                       text: 'Uninstall',
-                      onTap: () => onActionSelected('Uninstall', app),
+                      onTap: () {
+                        onActionSelected('Uninstall', app);
+                        captionNotifier?.value = 'You\'ve selected "Uninstall" for ${app['name']}.'; // Conversational caption
+                      },
+                      captionNotifier: captionNotifier,
+                      caption: 'Tap "Uninstall" to remove the app.', // Conversational caption
                     ),
                     const Divider(height: 1, color: Colors.grey),
-                    // "Share" - not requested for key management
                     _buildDialogOption(Icons.share, 'Share', () {
                       onActionSelected('Share', app);
-                    }),
+                      captionNotifier?.value = 'You chose to "Share" ${app['name']}.'; // Conversational caption
+                    }, captionNotifier),
                     const Divider(height: 1, color: Colors.grey),
-                     // "Edit" - not requested for key management
                     _buildDialogOption(Icons.edit, 'Edit', () {
                       onActionSelected('Edit', app);
-                    }),
+                      captionNotifier?.value = 'You chose to "Edit" ${app['name']}.'; // Conversational caption
+                    }, captionNotifier),
                   ],
                 ),
               ),
@@ -121,9 +130,8 @@ class CustomAppActionDialog extends StatelessWidget {
     );
   }
 
-  // Original _buildDialogOption for items without ClickableOutline
-  Widget _buildDialogOption(IconData icon, String text, VoidCallback onTap) {
-    return InkWell( // Using InkWell for visual feedback, similar to ListTile
+  Widget _buildDialogOption(IconData icon, String text, VoidCallback onTap, ValueNotifier<String>? captionNotifier) {
+    return InkWell(
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
@@ -141,18 +149,21 @@ class CustomAppActionDialog extends StatelessWidget {
     );
   }
 
-  // New method for options with ClickableOutline
   Widget _buildDialogOptionWithKey({
     required GlobalKey<ClickableOutlineState> key,
     required IconData icon,
     required String text,
     required VoidCallback onTap,
+    ValueNotifier<String>? captionNotifier,
+    String? caption,
   }) {
     return ClickableOutline(
       key: key,
-      action: () async => onTap(), // Ensure action is async
-      child: InkWell( // Using InkWell for visual feedback and existing tap behavior
-        onTap: onTap, // Keep direct tap for normal user interaction
+      action: () async => onTap(),
+      captionNotifier: captionNotifier,
+      caption: caption,
+      child: InkWell(
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
           child: Row(

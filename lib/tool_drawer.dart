@@ -14,7 +14,7 @@ class ToolDrawer extends StatefulWidget {
   final Function(File?) onFrameImageChanged;
   final Function(double, double) onImagePan;
   final Function(double) onImageScale;
-  final VoidCallback onClose;
+  final VoidCallback onClose; // Callback to close the drawer
   final double currentImageScale;
   final GlobalKey<PhoneMockupContainerState> phoneMockupKey;
   final GlobalKey<AppGridState> appGridKey;
@@ -30,7 +30,7 @@ class ToolDrawer extends StatefulWidget {
     required this.onFrameImageChanged,
     required this.onImagePan,
     required this.onImageScale,
-    required this.onClose,
+    required this.onClose, // Added to constructor
     required this.currentImageScale,
     required this.phoneMockupKey,
     required this.appGridKey,
@@ -90,13 +90,13 @@ class ToolDrawerState extends State<ToolDrawer> {
 
     if (image != null) {
       widget.onImageChanged(File(image.path));
-      widget.onClose();
+      // widget.onClose(); // No auto-close after pick
     }
   }
 
   void _dismissImage() {
     widget.onImageChanged(null);
-    widget.onClose();
+    // widget.onClose(); // No auto-close after dismiss
   }
 
   Future<void> _pickIcons() async {
@@ -120,7 +120,7 @@ class ToolDrawerState extends State<ToolDrawer> {
 
       if (newIcons.isNotEmpty) {
         widget.appGridKey.currentState?.addIcons(newIcons);
-        widget.onClose();
+        // widget.onClose(); // No auto-close after pick
       }
     }
   }
@@ -131,13 +131,13 @@ class ToolDrawerState extends State<ToolDrawer> {
 
     if (image != null) {
       widget.onFrameImageChanged(File(image.path));
-      widget.onClose();
+      // widget.onClose(); // No auto-close after pick
     }
   }
 
   void _dismissFrameImage() {
     widget.onFrameImageChanged(null);
-    widget.onClose();
+    // widget.onClose(); // No auto-close after dismiss
   }
 
   @override
@@ -169,14 +169,23 @@ class ToolDrawerState extends State<ToolDrawer> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Tools',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Tools',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.black54),
+                        onPressed: widget.onClose, // Call the onClose callback
+                      ),
+                    ],
                   ),
                   const Divider(height: 30, thickness: 1),
                   ElevatedButton.icon(
@@ -224,7 +233,7 @@ class ToolDrawerState extends State<ToolDrawer> {
                   const SizedBox(height: 10),
                   ElevatedButton.icon(
                     onPressed: () {
-                      widget.onClose();
+                      // widget.onClose(); // No auto-close when navigating
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -251,7 +260,7 @@ class ToolDrawerState extends State<ToolDrawer> {
                       if (image != null) {
                         widget.onMockupWallpaperChanged(File(image.path));
                       }
-                      widget.onClose();
+                      // widget.onClose(); // No auto-close after pick
                     },
                     icon: const Icon(Icons.photo_size_select_actual_outlined),
                     label: const Text('Set Mockup WP'),
@@ -264,7 +273,7 @@ class ToolDrawerState extends State<ToolDrawer> {
                   ElevatedButton.icon(
                     onPressed: () {
                       widget.onMockupWallpaperChanged(null);
-                      widget.onClose();
+                      // widget.onClose(); // No auto-close after remove
                     },
                     icon: const Icon(Icons.hide_image_outlined),
                     label: const Text('Remove Mockup WP'),
@@ -397,7 +406,7 @@ class ToolDrawerState extends State<ToolDrawer> {
       final String normalizedCommandText = originalCommandText.trim().toLowerCase();
 
       if (normalizedCommandText == "open settings") {
-        widget.onClose();
+        widget.onClose(); // Close drawer if command is executed
         await Future.delayed(const Duration(milliseconds: 300));
         widget.phoneMockupKey.currentState?.showSettingsScreen();
       } else {
@@ -405,7 +414,7 @@ class ToolDrawerState extends State<ToolDrawer> {
 
         if (parsedCommand != null) {
           final action = parsedCommand['action'];
-          widget.onClose();
+          widget.onClose(); // Close drawer if command is executed
           await Future.delayed(const Duration(milliseconds: 300));
 
           bool simulationSucceeded = false;

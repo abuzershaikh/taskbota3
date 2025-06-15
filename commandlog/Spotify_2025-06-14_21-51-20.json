@@ -1,0 +1,86 @@
+{
+  "appName": "Spotify",
+  "simulationStartTime": "2025-06-14T21:51:20.893700",
+  "steps": [
+    {
+      "timestamp": "00:00",
+      "step": "Simulation Start"
+    },
+    {
+      "timestamp": "00:00",
+      "step": "Step 1: Go to your app"
+    },
+    {
+      "timestamp": "00:15",
+      "step": "Step 2: Now, long press on the app icon — just hold your finger on it for a second."
+    },
+    {
+      "timestamp": "00:23",
+      "step": "Step 3: You’ll see a small menu pop up — tap on App info."
+    },
+    {
+      "timestamp": "00:31",
+      "step": "Step 4: Wait for the App Info screen to open up."
+    },
+    {
+      "timestamp": "00:35",
+      "step": "Step 5: Now tap on Storage & cache."
+    },
+    {
+      "timestamp": "00:43",
+      "step": "Step 6: Wait for a second while the storage screen loads."
+    },
+    {
+      "timestamp": "00:49",
+      "step": "Step 7: Next, tap on Clear data."
+    },
+    {
+      "timestamp": "00:57",
+      "step": "Step 8: A confirmation will show up — just tap Delete to confirm. Done! That app’s data has been cleared successfully."
+    },
+    {
+      "timestamp": "01:07",
+      "step": "Step 1: Go back to your Home Screen."
+    },
+    {
+      "timestamp": "01:10",
+      "step": "Step 2: Now find the Settings app. You can scroll and look for it, or use the search bar at the top if your phone has one."
+    },
+    {
+      "timestamp": "01:33",
+      "step": "Step 3: Once inside Settings, scroll all the way down."
+    },
+    {
+      "timestamp": "01:36",
+      "step": "Step 4: Give it a few seconds to load everything completely."
+    },
+    {
+      "timestamp": "01:43",
+      "step": "Step 5: Now tap on System."
+    },
+    {
+      "timestamp": "01:52",
+      "step": "Step 6: Inside System, tap on Reset options."
+    },
+    {
+      "timestamp": "02:00",
+      "step": "Step 7: Here, choose Reset Mobile Network Settings. If you not find search on search bar reset network settings."
+    },
+    {
+      "timestamp": "02:08",
+      "step": "Step 8: Tap on Reset settings once."
+    },
+    {
+      "timestamp": "02:16",
+      "step": "Step 9: And then confirm by tapping Reset settings again."
+    },
+    {
+      "timestamp": "02:27",
+      "step": "Final Step: That’s it! Now just go back to your Home Screen — You’ve successfully cleared the app data and reset your mobile network settings. Nice job! You’re all set. and now restart your phone and then 100 percent problem solve."
+    },
+    {
+      "timestamp": "02:31",
+      "step": "Simulation Stop"
+    }
+  ]
+}

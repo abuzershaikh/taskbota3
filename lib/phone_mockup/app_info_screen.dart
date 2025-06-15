@@ -2,6 +2,7 @@
 import 'dart:io'; // Added for File class
 import 'package:flutter/material.dart';
 import 'clickable_outline.dart';
+import 'phone_mockup_container.dart'; // Import PhoneMockupContainer to access ValueNotifier
 
 // Changed back to StatelessWidget
 class AppInfoScreen extends StatelessWidget {
@@ -42,18 +43,20 @@ class AppInfoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // print('AppInfoScreen: build method called for app: ${app['name']}');
+    // Access the caption notifier from the nearest PhoneMockupContainer ancestor
+    final PhoneMockupContainerState? phoneMockupState = context.findAncestorStateOfType<PhoneMockupContainerState>();
+    final ValueNotifier<String>? captionNotifier = phoneMockupState?.widget.currentCaption;
+
     return Scaffold(
       backgroundColor: Colors.grey[200],
       appBar: AppBar(
         backgroundColor: Colors.grey[200],
         elevation: 0,
         leading: ClickableOutline(
-          key: backButtonKey, // Use passed-in key
-          action: () async {
-            // print('AppInfoScreen: Back button pressed');
-            onBack();
-          },
+          key: backButtonKey,
+          action: () async => onBack(),
+          captionNotifier: captionNotifier, // Pass notifier
+          caption: 'Tap here to go back to the previous screen.', // Conversational caption
           child: const Padding(
             padding: EdgeInsets.all(8.0),
             child: Icon(Icons.arrow_back, color: Colors.black),
@@ -71,7 +74,7 @@ class AppInfoScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Column(
               children: [
-                Builder( // Use Builder to ensure context is available for errorBuilder if needed earlier
+                Builder(
                   builder: (context) {
                     final String iconPath = app['icon']!;
                     Widget iconWidget;
@@ -83,7 +86,7 @@ class AppInfoScreen extends StatelessWidget {
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           print("Error loading asset in AppInfoScreen: $iconPath - $error");
-                          return const Icon(Icons.broken_image, size: 80); // Placeholder
+                          return const Icon(Icons.broken_image, size: 80);
                         },
                       );
                     } else {
@@ -94,7 +97,7 @@ class AppInfoScreen extends StatelessWidget {
                         fit: BoxFit.cover,
                         errorBuilder: (context, error, stackTrace) {
                           print("Error loading file in AppInfoScreen: $iconPath - $error");
-                          return const Icon(Icons.broken_image, size: 80); // Placeholder
+                          return const Icon(Icons.broken_image, size: 80);
                         },
                       );
                     }
@@ -115,6 +118,7 @@ class AppInfoScreen extends StatelessWidget {
             ),
             _buildInfoCard([
               _buildInfoRow(context, openButtonKey, 'Open', '', action: () async {
+                captionNotifier?.value = 'Tap "Open" to launch the app.'; // Conversational caption
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text("Opening ${app['name']}")),
                 );
@@ -126,19 +130,30 @@ class AppInfoScreen extends StatelessWidget {
                 onNavigateToClearData(app);
               }),
               const Divider(height: 0, indent: 16, endIndent: 16),
-              _buildInfoRow(context, mobileDataKey, 'Mobile data & Wi-Fi', '', action: () async {}),
+              _buildInfoRow(context, mobileDataKey, 'Mobile data & Wi-Fi', '', action: () async {
+                captionNotifier?.value = 'Tap here to manage mobile data and Wi-Fi settings.'; // Conversational caption
+              }),
               const Divider(height: 0, indent: 16, endIndent: 16),
-              _buildInfoRow(context, batteryKey, 'Battery', '', action: () async {}),
+              _buildInfoRow(context, batteryKey, 'Battery', '', action: () async {
+                captionNotifier?.value = 'Tap here to see battery usage details.'; // Conversational caption
+              }),
               const Divider(height: 0, indent: 16, endIndent: 16),
-              _buildInfoRow(context, notificationsKey, 'Notifications', '', action: () async {}),
+              _buildInfoRow(context, notificationsKey, 'Notifications', '', action: () async {
+                captionNotifier?.value = 'Tap here to adjust notification settings.'; // Conversational caption
+              }),
               const Divider(height: 0, indent: 16, endIndent: 16),
-              _buildInfoRow(context, permissionsKey, 'Permissions', '', action: () async {}),
+              _buildInfoRow(context, permissionsKey, 'Permissions', '', action: () async {
+                captionNotifier?.value = 'Tap here to manage app permissions.'; // Conversational caption
+              }),
               const Divider(height: 0, indent: 16, endIndent: 16),
-              _buildInfoRow(context, openByDefaultKey, 'Open by default', '', action: () async {}),
+              _buildInfoRow(context, openByDefaultKey, 'Open by default', '', action: () async {
+                captionNotifier?.value = 'Tap here to configure default app settings.'; // Conversational caption
+              }),
             ]),
             const SizedBox(height: 20),
             _buildInfoCard([
               _buildInfoRow(context, uninstallButtonKey, 'Uninstall', '', action: () async {
+                captionNotifier?.value = 'Tap "Uninstall" to remove the app.'; // Conversational caption
                 showDialog(
                   AlertDialog(
                     title: const Text('Uninstall App?'),
@@ -147,6 +162,7 @@ class AppInfoScreen extends StatelessWidget {
                       TextButton(
                         onPressed: () {
                           dismissDialog();
+                          captionNotifier?.value = 'You chose to cancel uninstalling ${app['name']}.'; // Conversational caption
                         },
                         child: const Text('Cancel'),
                       ),
@@ -156,7 +172,8 @@ class AppInfoScreen extends StatelessWidget {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(content: Text('${app['name']} uninstalled!')),
                           );
-                          onBack(); // Go back after uninstall
+                          captionNotifier?.value = '${app['name']} has been uninstalled successfully!'; // Conversational caption
+                          onBack();
                         },
                         child: const Text('Uninstall'),
                       ),
@@ -172,7 +189,6 @@ class AppInfoScreen extends StatelessWidget {
     );
   }
 
-  // Helper methods are now part of the StatelessWidget
   Widget _buildInfoCard(List<Widget> children) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -188,9 +204,13 @@ class AppInfoScreen extends StatelessWidget {
   }
 
   Widget _buildInfoRow(BuildContext context, GlobalKey<ClickableOutlineState> key, String title, String subtitle, {required Future<void> Function() action}) {
+    final PhoneMockupContainerState? phoneMockupState = context.findAncestorStateOfType<PhoneMockupContainerState>();
+    final ValueNotifier<String>? captionNotifier = phoneMockupState?.widget.currentCaption;
     return ClickableOutline(
-      key: key, // Use passed-in key from method parameters
+      key: key,
       action: action,
+      captionNotifier: captionNotifier, // Pass notifier
+      caption: 'Now, tap on "$title".', // Conversational caption for row
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
         child: Row(
