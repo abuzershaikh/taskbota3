@@ -14,7 +14,7 @@ class ToolDrawer extends StatefulWidget {
   final Function(File?) onFrameImageChanged;
   final Function(double, double) onImagePan;
   final Function(double) onImageScale;
-  final VoidCallback onClose; // Callback to close the drawer
+  final VoidCallback onClose;
   final double currentImageScale;
   final GlobalKey<PhoneMockupContainerState> phoneMockupKey;
   final GlobalKey<AppGridState> appGridKey;
@@ -22,6 +22,7 @@ class ToolDrawer extends StatefulWidget {
   final VoidCallback onRemoveWallpaper;
   final File? currentWallpaper;
   final Function(File?) onMockupWallpaperChanged;
+  final VoidCallback onStartWaiting;
 
   const ToolDrawer({
     super.key,
@@ -30,7 +31,7 @@ class ToolDrawer extends StatefulWidget {
     required this.onFrameImageChanged,
     required this.onImagePan,
     required this.onImageScale,
-    required this.onClose, // Added to constructor
+    required this.onClose,
     required this.currentImageScale,
     required this.phoneMockupKey,
     required this.appGridKey,
@@ -38,6 +39,7 @@ class ToolDrawer extends StatefulWidget {
     required this.onRemoveWallpaper,
     required this.onMockupWallpaperChanged,
     this.currentWallpaper,
+    required this.onStartWaiting,
   });
 
   @override
@@ -90,13 +92,11 @@ class ToolDrawerState extends State<ToolDrawer> {
 
     if (image != null) {
       widget.onImageChanged(File(image.path));
-      // widget.onClose(); // No auto-close after pick
     }
   }
 
   void _dismissImage() {
     widget.onImageChanged(null);
-    // widget.onClose(); // No auto-close after dismiss
   }
 
   Future<void> _pickIcons() async {
@@ -120,7 +120,6 @@ class ToolDrawerState extends State<ToolDrawer> {
 
       if (newIcons.isNotEmpty) {
         widget.appGridKey.currentState?.addIcons(newIcons);
-        // widget.onClose(); // No auto-close after pick
       }
     }
   }
@@ -131,13 +130,11 @@ class ToolDrawerState extends State<ToolDrawer> {
 
     if (image != null) {
       widget.onFrameImageChanged(File(image.path));
-      // widget.onClose(); // No auto-close after pick
     }
   }
 
   void _dismissFrameImage() {
     widget.onFrameImageChanged(null);
-    // widget.onClose(); // No auto-close after dismiss
   }
 
   @override
@@ -183,7 +180,7 @@ class ToolDrawerState extends State<ToolDrawer> {
                       ),
                       IconButton(
                         icon: const Icon(Icons.close, color: Colors.black54),
-                        onPressed: widget.onClose, // Call the onClose callback
+                        onPressed: widget.onClose,
                       ),
                     ],
                   ),
@@ -233,7 +230,6 @@ class ToolDrawerState extends State<ToolDrawer> {
                   const SizedBox(height: 10),
                   ElevatedButton.icon(
                     onPressed: () {
-                      // widget.onClose(); // No auto-close when navigating
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -260,7 +256,6 @@ class ToolDrawerState extends State<ToolDrawer> {
                       if (image != null) {
                         widget.onMockupWallpaperChanged(File(image.path));
                       }
-                      // widget.onClose(); // No auto-close after pick
                     },
                     icon: const Icon(Icons.photo_size_select_actual_outlined),
                     label: const Text('Set Mockup WP'),
@@ -273,7 +268,6 @@ class ToolDrawerState extends State<ToolDrawer> {
                   ElevatedButton.icon(
                     onPressed: () {
                       widget.onMockupWallpaperChanged(null);
-                      // widget.onClose(); // No auto-close after remove
                     },
                     icon: const Icon(Icons.hide_image_outlined),
                     label: const Text('Remove Mockup WP'),
@@ -354,7 +348,7 @@ class ToolDrawerState extends State<ToolDrawer> {
                       controller: _commandController,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
-                        labelText: 'Enter command',
+                        labelText: 'Enter commands (CSV)',
                         isDense: true,
                       ),
                       onSubmitted: (_) => _handleRunCommand(),
@@ -370,7 +364,7 @@ class ToolDrawerState extends State<ToolDrawer> {
                         textStyle: const TextStyle(fontSize: 16),
                         backgroundColor: _isSimulationRunning ? Colors.grey : null,
                       ),
-                      child: Text(_isSimulationRunning ? 'Simulating...' : 'Run Command'),
+                      child: Text(_isSimulationRunning ? 'Simulating...' : 'Run Commands'),
                     ),
                   ),
                 ],
@@ -387,7 +381,26 @@ class ToolDrawerState extends State<ToolDrawer> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Simulation already in progress."),
+            content: Text("Simulations already in progress."),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
+    final String allCommandsText = _commandController.text;
+    final List<String> commands = allCommandsText
+        .split(',')
+        .map((cmd) => cmd.trim())
+        .where((cmd) => cmd.isNotEmpty)
+        .toList();
+
+    if (commands.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("No command entered."),
             backgroundColor: Colors.orange,
           ),
         );
@@ -399,63 +412,73 @@ class ToolDrawerState extends State<ToolDrawer> {
       setState(() {
         _isSimulationRunning = true;
       });
+      widget.onClose();
     }
 
     try {
-      final String originalCommandText = _commandController.text;
-      final String normalizedCommandText = originalCommandText.trim().toLowerCase();
+      for (int i = 0; i < commands.length; i++) {
+        if (i > 0) {
+          widget.phoneMockupKey.currentState?.widget.currentCaption.value = 'Waiting for 1 minute before executing the next command...';
+          widget.onStartWaiting();
+          await Future.delayed(const Duration(minutes: 1));
+        }
 
-      if (normalizedCommandText == "open settings") {
-        widget.onClose(); // Close drawer if command is executed
-        await Future.delayed(const Duration(milliseconds: 300));
-        widget.phoneMockupKey.currentState?.showSettingsScreen();
-      } else {
-        final parsedCommand = _parseCommand(originalCommandText);
+        final String command = commands[i];
+        final String appName = command.split(' clear data').first.trim();
+        
+        widget.phoneMockupKey.currentState?.widget.currentCaption.value = "Preparing '$appName' for action...";
+        widget.appGridKey.currentState?.moveAppToBottomIfNeeded(appName);
+        await Future.delayed(const Duration(seconds: 2));
+
+        widget.appGridKey.currentState?.shuffleMiddleApps();
+        await Future.delayed(const Duration(milliseconds: 500));
+
+        widget.phoneMockupKey.currentState?.widget.currentCaption.value = 'Executing command ${i + 1}/${commands.length}: "$command"';
+        await Future.delayed(const Duration(seconds: 2));
+
+        final parsedCommand = _parseCommand(command);
 
         if (parsedCommand != null) {
-          final action = parsedCommand['action'];
-          widget.onClose(); // Close drawer if command is executed
-          await Future.delayed(const Duration(milliseconds: 300));
-
           bool simulationSucceeded = false;
+          final action = parsedCommand['action'];
+
           if (action == 'clearDataAndResetNetwork') {
-            final appName = parsedCommand['appName'];
-            if (appName != null) {
-              simulationSucceeded = await _appAutomationSimulator
-                  .startClearDataAndResetNetworkSimulation(appName);
-            }
+              simulationSucceeded = await _appAutomationSimulator.startClearDataAndResetNetworkSimulation(appName);
           } else if (action == 'resetNetworkOnly') {
-              final phoneState = widget.phoneMockupKey.currentState;
-              final gridState = widget.appGridKey.currentState;
-              if (phoneState != null && gridState != null) {
-                simulationSucceeded = await _appAutomationSimulator
-                    .startResetNetworkSimulation(phoneState, gridState);
-              } else {
-                  print("Error: Could not get phone or grid state.");
-              }
+            final phoneState = widget.phoneMockupKey.currentState;
+            final gridState = widget.appGridKey.currentState;
+            if (phoneState != null && gridState != null) {
+              simulationSucceeded = await _appAutomationSimulator.startResetNetworkSimulation(phoneState, gridState);
+            } else {
+              print("Error: Could not get phone or grid state.");
+            }
           }
-          
+
           if (!simulationSucceeded && mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Simulation failed. Check console for details."),
+              SnackBar(
+                content: Text("Simulation failed for command: '$command'."),
                 backgroundColor: Colors.red,
               ),
             );
+            break;
           }
+
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text("Unknown command."),
+              SnackBar(
+                content: Text("Unknown command: '$command'"),
                 backgroundColor: Colors.orange,
               ),
             );
           }
         }
       }
+      widget.phoneMockupKey.currentState?.widget.currentCaption.value = 'All commands have been executed.';
     } finally {
       if (mounted) {
+        widget.appGridKey.currentState?.resetGrid();
         setState(() {
           _isSimulationRunning = false;
         });

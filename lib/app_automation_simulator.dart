@@ -44,7 +44,7 @@ class AppAutomationSimulator {
     final now = DateTime.now();
     final formatter = DateFormat('yyyy-MM-dd_HH-mm-ss');
     final String formattedDate = formatter.format(now);
-    final fileName = '${appName}_${formattedDate}.json';
+    final fileName = '${appName}_$formattedDate.json';
     _logFile = File('${logDirectory.path}/$fileName');
 
     // Add the initial "start" entry
