@@ -11,8 +11,8 @@ class CaptionDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 250, // Adjust width as needed
-      height: 150, // Adjust height as needed
+      width: 400, // Adjust width as needed
+      height: 250, // Adjust height as needed
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.9),
@@ -33,7 +33,7 @@ class CaptionDisplay extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Current Action:',
+                'Step to follow:',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -46,7 +46,7 @@ class CaptionDisplay extends StatelessWidget {
                   child: Text(
                     captionText,
                     style: const TextStyle(
-                      fontSize: 14,
+                      fontSize: 24,
                       color: Colors.black87,
                     ),
                   ),

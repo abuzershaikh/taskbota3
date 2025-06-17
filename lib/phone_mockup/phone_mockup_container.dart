@@ -1,26 +1,27 @@
 // lib/phone_mockup/phone_mockup_container.dart
+import 'dart:async'; // For Timer
 import 'dart:io' show File;
+import 'dart:math'; // For Random
+import 'dart:ui'; // For BackdropFilter
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'dart:ui'; // For BackdropFilter
-import 'dart:async'; // For Timer
 
 import 'app_grid.dart';
-import 'settings_screen.dart';
-import 'system_settings.dart';
-import 'reset_option.dart';
-import 'reset_mobile_network_settings_screen.dart';
-import 'notification_drawer.dart';
-import 'custom_app_action_dialog.dart';
 import 'app_info_screen.dart';
+import 'app_management_screen.dart';
+import 'apps1.dart';
 import 'clear_data_screen.dart';
-import 'custom_clear_data_dialog.dart';
 import 'clickable_outline.dart';
 import 'connection_sharing_screen.dart';
-import 'apps1.dart';
-import 'app_management_screen.dart';
+import 'custom_app_action_dialog.dart';
+import 'custom_clear_data_dialog.dart';
+import 'notification_drawer.dart';
+import 'reset_mobile_network_settings_screen.dart';
+import 'reset_option.dart';
+import 'settings_screen.dart';
 import 'system_app_screen.dart';
+import 'system_settings.dart';
 
 // Enum to manage the current view being displayed in the phone mockup
 enum CurrentScreenView {
@@ -41,16 +42,15 @@ typedef AppItemTapCallback = void Function(String itemName,
     {Map<String, String>? itemDetails});
 
 class PhoneMockupContainer extends StatefulWidget {
-  final GlobalKey<AppGridState>
-      appGridKey;
+  final GlobalKey<AppGridState> appGridKey;
   final File? mockupWallpaperImage;
-  final ValueNotifier<String> currentCaption; // New: Accept ValueNotifier
+  final ValueNotifier<String> currentCaption;
 
   const PhoneMockupContainer({
     super.key,
     required this.appGridKey,
     this.mockupWallpaperImage,
-    required this.currentCaption, // New: Required in constructor
+    required this.currentCaption,
   });
 
   static final GlobalKey<PhoneMockupContainerState> globalKey =
@@ -64,15 +64,29 @@ class PhoneMockupContainer extends StatefulWidget {
   State<PhoneMockupContainer> createState() => PhoneMockupContainerState();
 }
 
+class _BatteryFillClipper extends CustomClipper<Rect> {
+  final double level; // 0.0 to 1.0
+
+  _BatteryFillClipper({required this.level});
+
+  @override
+  Rect getClip(Size size) {
+    return Rect.fromLTWH(0.0, 0.0, size.width * level, size.height);
+  }
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Rect> oldClipper) {
+    return (oldClipper as _BatteryFillClipper).level != level;
+  }
+}
+
 class PhoneMockupContainerState extends State<PhoneMockupContainer> {
   final GlobalKey<NotificationDrawerState> _drawerKey =
       GlobalKey<NotificationDrawerState>();
 
   CurrentScreenView _currentScreenView = CurrentScreenView.appGrid;
-  Map<String, String>?
-      _currentAppDetails;
-  Widget _currentAppScreenWidget =
-      const SizedBox();
+  Map<String, String>? _currentAppDetails;
+  Widget _currentAppScreenWidget = const SizedBox();
 
   bool _isBlurred = false;
   Widget? _activeDialog;
@@ -80,6 +94,19 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
   String? _currentToastMessage;
   bool _isToastVisible = false;
   Duration _toastDuration = const Duration(seconds: 3);
+
+  // --- Status Bar State ---
+  Timer? _statusBarTimer;
+  String _formattedTime = '';
+  int _batteryLevel = 81;
+  bool _isCharging = false;
+  int _signalStrength = 4; // 1-4
+  final Random _random = Random();
+
+  // For battery drain simulation
+  DateTime _lastBatteryUpdateTime = DateTime.now();
+  final Duration _batteryDropInterval = const Duration(minutes: 3);
+  int _secondsUntilNextSignalChange = 3;
 
   // --- Keys for automation ---
   final GlobalKey<ClickableOutlineState> _appInfoBackButtonKey = GlobalKey();
@@ -115,14 +142,188 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
   final GlobalKey<ClickableOutlineState> _specialAppAccessKey = GlobalKey();
   final GlobalKey<ClickableOutlineState> _appLockKey = GlobalKey();
   final GlobalKey<ClickableOutlineState> _dualAppsKey = GlobalKey();
-  
-  // --- New Keys for Settings & Reset Flow ---
   final GlobalKey<SettingsScreenState> _settingsScreenKey = GlobalKey<SettingsScreenState>();
   final GlobalKey<ClickableOutlineState> _systemSettingsResetOptionsKey = GlobalKey();
   final GlobalKey<ClickableOutlineState> _resetOptionsMobileNetworkKey = GlobalKey();
   final GlobalKey<ClickableOutlineState> _resetMobileNetworkSettingsButtonKey = GlobalKey();
 
+  @override
+  void initState() {
+    super.initState();
+    _updateCurrentScreenWidget();
+    _setInitialStatusBarState();
+    _startStatusBarTimer();
+  }
 
+  @override
+  void dispose() {
+    _statusBarTimer?.cancel();
+    super.dispose();
+  }
+
+  void _setInitialStatusBarState() {
+    _formattedTime = DateFormat('h:mm:ss a').format(DateTime.now());
+    _batteryLevel = 81;
+    _isCharging = false;
+    _signalStrength = 4;
+  }
+
+  void _startStatusBarTimer() {
+    _statusBarTimer?.cancel();
+    _statusBarTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      _updateStatusBar();
+    });
+  }
+
+  void _updateStatusBar() {
+    final now = DateTime.now();
+    final newTime = DateFormat('h:mm:ss a').format(now);
+    int newSignalStrength = _signalStrength;
+    _secondsUntilNextSignalChange--;
+    if (_secondsUntilNextSignalChange <= 0) {
+      newSignalStrength = _random.nextInt(4) + 1;
+      _secondsUntilNextSignalChange = _random.nextInt(3) + 2;
+    }
+
+    int newBatteryLevel = _batteryLevel;
+    bool newIsCharging = _isCharging;
+
+    if (newIsCharging) {
+      if (now.difference(_lastBatteryUpdateTime).inSeconds >= 2) {
+        newBatteryLevel++;
+        _lastBatteryUpdateTime = now;
+      }
+      if (newBatteryLevel >= 100) {
+        newBatteryLevel = 100;
+        newIsCharging = false;
+        _lastBatteryUpdateTime = now;
+      }
+    } else {
+      if (now.difference(_lastBatteryUpdateTime) >= _batteryDropInterval) {
+        newBatteryLevel--;
+        _lastBatteryUpdateTime = now;
+      }
+
+      if (newBatteryLevel == 10 || newBatteryLevel == 5) {
+        if (_random.nextBool()) {
+          newIsCharging = true;
+          _lastBatteryUpdateTime = now;
+        }
+      }
+
+      if (newBatteryLevel < 0) newBatteryLevel = 0;
+    }
+
+    if (newTime != _formattedTime ||
+        newBatteryLevel != _batteryLevel ||
+        newIsCharging != _isCharging ||
+        newSignalStrength != _signalStrength) {
+      setState(() {
+        _formattedTime = newTime;
+        _batteryLevel = newBatteryLevel;
+        _isCharging = newIsCharging;
+        _signalStrength = newSignalStrength;
+      });
+    }
+  }
+
+  IconData _getSignalIcon() {
+    switch (_signalStrength) {
+      case 1:
+        return Icons.signal_cellular_alt_1_bar;
+      case 2:
+        return Icons.signal_cellular_alt_2_bar;
+      case 3:
+        return Icons.signal_cellular_alt;
+      case 4:
+      default:
+        return Icons.signal_cellular_4_bar;
+    }
+  }
+
+  Widget _getBatteryWidget() {
+    if (_isCharging) {
+      return Row(
+        children: [
+          Text("$_batteryLevel%",
+              style: const TextStyle(color: Colors.greenAccent, fontSize: 12)),
+          const SizedBox(width: 4),
+          Stack(
+            alignment: Alignment.center,
+            children: <Widget>[
+              Icon(Icons.battery_full, color: Colors.grey.shade700, size: 18.0),
+              ClipRect(
+                clipper: _BatteryFillClipper(level: _batteryLevel / 100.0),
+                child: const Icon(Icons.battery_full, color: Colors.greenAccent, size: 18.0),
+              ),
+            ],
+          ),
+        ],
+      );
+    } else {
+      IconData batteryIcon;
+      Color batteryColor = Colors.white;
+
+      if (_batteryLevel > 95) {
+        batteryIcon = Icons.battery_full;
+      } else if (_batteryLevel > 80) {
+        batteryIcon = Icons.battery_6_bar;
+      } else if (_batteryLevel > 65) {
+        batteryIcon = Icons.battery_5_bar;
+      } else if (_batteryLevel > 50) {
+        batteryIcon = Icons.battery_4_bar;
+      } else if (_batteryLevel > 35) {
+        batteryIcon = Icons.battery_3_bar;
+      } else if (_batteryLevel > 20) {
+        batteryIcon = Icons.battery_2_bar;
+      } else if (_batteryLevel > 10) {
+        batteryIcon = Icons.battery_1_bar;
+      } else {
+        batteryIcon = Icons.battery_alert;
+        batteryColor = Colors.red;
+      }
+
+      return Row(
+        children: [
+          Text("$_batteryLevel%",
+              style: TextStyle(color: batteryColor, fontSize: 12)),
+          const SizedBox(width: 4),
+          Icon(batteryIcon, color: batteryColor, size: 18),
+        ],
+      );
+    }
+  }
+
+  Widget _buildStatusBar() {
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      color: Colors.black,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            _formattedTime,
+            style: const TextStyle(color: Colors.white, fontSize: 12),
+          ),
+          Row(
+            children: [
+              Icon(_getSignalIcon(), color: Colors.white, size: 18),
+              const SizedBox(width: 4),
+              const Icon(Icons.wifi, color: Colors.white, size: 18),
+              const SizedBox(width: 4),
+              _getBatteryWidget(),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+  
   void dismissDialog() {
     setState(() {
       _activeDialog = null;
@@ -135,7 +336,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       _currentScreenView = CurrentScreenView.settings;
       _currentAppDetails = null;
       _updateCurrentScreenWidget();
-      widget.currentCaption.value = 'Alright, let\'s head over to the Settings screen now.'; // Conversational caption
+      widget.currentCaption.value = 'Alright, let\'s head over to the Settings screen now.';
     });
   }
 
@@ -143,7 +344,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
     setState(() {
       _currentScreenView = CurrentScreenView.systemApps;
       _updateCurrentScreenWidget();
-      widget.currentCaption.value = 'We\'re now on the System Apps screen.'; // Conversational caption
+      widget.currentCaption.value = 'We\'re now on the System Apps screen.';
     });
   }
 
@@ -171,15 +372,9 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _updateCurrentScreenWidget();
-  }
-
   void handleItemTap(String itemName, {Map<String, String>? itemDetails}) {
     print('PhoneMockupContainer: Item tapped: $itemName');
-    widget.currentCaption.value = 'Tapping on "$itemName" now.'; // Conversational caption
+    widget.currentCaption.value = 'Tapping on "$itemName" now.';
     if (itemName == 'Settings') {
       setState(() {
         _currentScreenView = CurrentScreenView.settings;
@@ -256,11 +451,11 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
           _currentAppScreenWidget = AppInfoScreen(
             app: _currentAppDetails!,
             onBack: () {
-              widget.currentCaption.value = 'Going back to the previous screen.'; // Conversational caption
+              widget.currentCaption.value = 'Going back to the previous screen.';
               navigateHome();
             },
             onNavigateToClearData: (appData) {
-              widget.currentCaption.value = 'Navigating to Storage & cache for ${appData['name']}.'; // Conversational caption
+              widget.currentCaption.value = 'Navigating to Storage & cache for ${appData['name']}.';
               navigateToStorageUsage();
             },
             showDialog: (Widget dialogWidget) => _showDialog(context, dialogWidget),
@@ -290,7 +485,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
             initialDataSize: _currentAppDetails!['dataSize'] ?? '0 B',
             initialCacheSize: _currentAppDetails!['cacheSize'] ?? '0 B',
             onBack: () {
-              widget.currentCaption.value = 'Going back from the Clear Data screen.'; // Conversational caption
+              widget.currentCaption.value = 'Going back from the Clear Data screen.';
               setState(() {
                 _currentScreenView = CurrentScreenView.appInfo;
                 _updateCurrentScreenWidget();
@@ -300,11 +495,11 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
             dismissDialog: dismissDialog,
             onPerformClearData: () {
               _performActualDataClear(_currentAppDetails!['name']!);
-              widget.currentCaption.value = 'Confirming to clear all data for ${_currentAppDetails!['name']}.'; // Conversational caption
+              widget.currentCaption.value = 'Confirming to clear all data for ${_currentAppDetails!['name']}.';
             },
             onPerformClearCache: () {
               _performActualCacheClear(_currentAppDetails!['name']!);
-              widget.currentCaption.value = 'Clearing cache for ${_currentAppDetails!['name']}.'; // Conversational caption
+              widget.currentCaption.value = 'Clearing cache for ${_currentAppDetails!['name']}.';
             },
             backButtonKey: _clearDataBackButtonKey,
             clearDataButtonKey: _clearDataClearDataButtonKey,
@@ -319,7 +514,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       case CurrentScreenView.connectionSharing:
         _currentAppScreenWidget = ConnectionSharingScreen(
           onBack: () {
-            widget.currentCaption.value = 'Going back from Connection & sharing.'; // Conversational caption
+            widget.currentCaption.value = 'Going back from Connection & sharing.';
             setState(() {
               _currentScreenView = CurrentScreenView.settings;
               _updateCurrentScreenWidget();
@@ -331,14 +526,14 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       case CurrentScreenView.apps1:
         _currentAppScreenWidget = Apps1Screen(
           onBack: () {
-            widget.currentCaption.value = 'Going back from the Apps section.'; // Conversational caption
+            widget.currentCaption.value = 'Going back from the Apps section.';
             setState(() {
               _currentScreenView = CurrentScreenView.settings;
               _updateCurrentScreenWidget();
             });
           },
           onAppManagementTap: () {
-            widget.currentCaption.value = 'Tapping on App management now.'; // Conversational caption
+            widget.currentCaption.value = 'Tapping on App management now.';
             setState(() {
               _currentScreenView = CurrentScreenView.appManagement;
               _updateCurrentScreenWidget();
@@ -358,7 +553,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       case CurrentScreenView.appManagement:
         _currentAppScreenWidget = AppManagementScreen(
             onBack: () {
-              widget.currentCaption.value = 'Returning from App Management.'; // Conversational caption
+              widget.currentCaption.value = 'Returning from App Management.';
               setState(() {
                 _currentScreenView = CurrentScreenView.apps1;
                 _updateCurrentScreenWidget();
@@ -369,7 +564,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       case CurrentScreenView.systemApps:
         _currentAppScreenWidget = SystemAppScreen(
           onBack: () {
-            widget.currentCaption.value = 'Going back from System Apps.'; // Conversational caption
+            widget.currentCaption.value = 'Going back from System Apps.';
             setState(() {
               _currentScreenView = CurrentScreenView.appManagement;
               _updateCurrentScreenWidget();
@@ -380,14 +575,14 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       case CurrentScreenView.systemSettings:
         _currentAppScreenWidget = SystemSettingsScreen(
           onBack: () {
-            widget.currentCaption.value = 'Returning from System settings.'; // Conversational caption
+            widget.currentCaption.value = 'Returning from System settings.';
             setState(() {
               _currentScreenView = CurrentScreenView.settings;
               _updateCurrentScreenWidget();
             });
           },
           onNavigateToResetOptions: () {
-            widget.currentCaption.value = 'Navigating to Reset options.'; // Conversational caption
+            widget.currentCaption.value = 'Navigating to Reset options.';
             setState(() {
               _currentScreenView = CurrentScreenView.resetOptions;
               _updateCurrentScreenWidget();
@@ -399,14 +594,14 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       case CurrentScreenView.resetOptions:
         _currentAppScreenWidget = ResetOptionScreen(
           onBack: () {
-            widget.currentCaption.value = 'Going back from Reset options.'; // Conversational caption
+            widget.currentCaption.value = 'Going back from Reset options.';
             setState(() {
               _currentScreenView = CurrentScreenView.systemSettings;
               _updateCurrentScreenWidget();
             });
           },
           onNavigateToResetMobileNetwork: () {
-            widget.currentCaption.value = 'Choosing to Reset Mobile Network Settings.'; // Conversational caption
+            widget.currentCaption.value = 'Choosing to Reset Mobile Network Settings.';
             setState(() {
               _currentScreenView = CurrentScreenView.resetMobileNetworkSettings;
               _updateCurrentScreenWidget();
@@ -421,7 +616,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       case CurrentScreenView.resetMobileNetworkSettings:
         _currentAppScreenWidget = ResetMobileNetworkSettingsScreen(
           onBack: () {
-            widget.currentCaption.value = 'Returning from Reset Mobile Network Settings.'; // Conversational caption
+            widget.currentCaption.value = 'Returning from Reset Mobile Network Settings.';
             setState(() {
               _currentScreenView = CurrentScreenView.resetOptions;
               _updateCurrentScreenWidget();
@@ -443,7 +638,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       final appDetails = widget.appGridKey.currentState?.getAppByName(appName);
       if (appDetails != null && appDetails.isNotEmpty) {
         handleAppLongPress(appDetails);
-        widget.currentCaption.value = 'Long pressing on "$appName".'; // Conversational caption
+        widget.currentCaption.value = 'Long pressing on "$appName".';
       } else {
         print(
             'PhoneMockupContainer: App for programmatic long press "$appName" not found.');
@@ -451,9 +646,9 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
     } else if (cmd.startsWith('tap ')) {
       final appName = cmd.substring('tap '.length).trim();
       _handleAppTap(appName);
-      widget.currentCaption.value = 'Tapping on "$appName" now.'; // Conversational caption
+      widget.currentCaption.value = 'Tapping on "$appName" now.';
     } else if (cmd.contains('back')) {
-      widget.currentCaption.value = 'Tapping the back button.'; // Conversational caption
+      widget.currentCaption.value = 'Tapping the back button.';
       if (_currentScreenView == CurrentScreenView.appInfo) {
         await triggerAppInfoBackButtonAction();
       } else if (_currentScreenView == CurrentScreenView.clearData) {
@@ -498,11 +693,11 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       }
     } else if (cmd.contains('notification')) {
       _openNotificationDrawer();
-      widget.currentCaption.value = 'Opening the notification drawer.'; // Conversational caption
+      widget.currentCaption.value = 'Opening the notification drawer.';
     } else if (cmd.startsWith('scroll to')) {
       final appName = cmd.substring('scroll to'.length).trim();
       if (widget.appGridKey.currentState != null) {
-        widget.currentCaption.value = 'Scrolling to find "$appName".'; // Conversational caption
+        widget.currentCaption.value = 'Scrolling to find "$appName".';
         widget.appGridKey.currentState?.scrollToApp(appName);
       } else {
         if (mounted) {
@@ -537,7 +732,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
         onActionSelected: (actionName, appDetailsFromDialog) {
           dismissDialog();
           if (actionName == 'App info') {
-            widget.currentCaption.value = 'You\'ve selected "App info" for ${appDetailsFromDialog['name']}.'; // Conversational caption
+            widget.currentCaption.value = 'You\'ve selected "App info" for ${appDetailsFromDialog['name']}.';
             navigateToAppInfo(appDetails: appDetailsFromDialog);
           } else {
             if (mounted) {
@@ -634,39 +829,39 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
   }
 
   Future<void> triggerAppInfoStorageCacheAction() async {
-    widget.currentCaption.value = 'Now, tap on "Storage & cache".'; // Conversational caption
+    widget.currentCaption.value = 'Now, tap on "Storage & cache".';
     return await _appInfoStorageCacheButtonKey.currentState?.triggerOutlineAndAction();
   }
   Future<void> triggerAppInfoBackButtonAction() async {
-    widget.currentCaption.value = 'Tapping the "Back" button from App Info.'; // Conversational caption
+    widget.currentCaption.value = 'Tapping the "Back" button from App Info.';
     return await _appInfoBackButtonKey.currentState?.triggerOutlineAndAction();
   }
   Future<void> triggerClearDataButtonAction() async {
-    widget.currentCaption.value = 'Now, tap on "Clear data".'; // Conversational caption
+    widget.currentCaption.value = 'Now, tap on "Clear data".';
     return await _clearDataClearDataButtonKey.currentState?.triggerOutlineAndAction();
   }
   Future<void> triggerClearCacheButtonAction() async {
-    widget.currentCaption.value = 'Now, tap on "Clear cache".'; // Conversational caption
+    widget.currentCaption.value = 'Now, tap on "Clear cache".';
     return await _clearDataClearCacheButtonKey.currentState?.triggerOutlineAndAction();
   }
   Future<void> triggerClearDataBackButtonAction() async {
-    widget.currentCaption.value = 'Tapping the "Back" button from Clear Data.'; // Conversational caption
+    widget.currentCaption.value = 'Tapping the "Back" button from Clear Data.';
     return await _clearDataBackButtonKey.currentState?.triggerOutlineAndAction();
   }
   Future<void> triggerDialogAppInfoAction() async {
-    widget.currentCaption.value = 'Please tap on "App info" in the dialog.'; // Conversational caption
+    widget.currentCaption.value = 'Please tap on "App info" in the dialog.';
     return await _appActionDialogAppInfoKey.currentState?.triggerOutlineAndAction();
   }
   Future<void> triggerDialogUninstallAction() async {
-    widget.currentCaption.value = 'Please tap on "Uninstall" in the dialog.'; // Conversational caption
+    widget.currentCaption.value = 'Please tap on "Uninstall" in the dialog.';
     return await _appActionDialogUninstallKey.currentState?.triggerOutlineAndAction();
   }
   Future<void> triggerDialogClearDataConfirmAction() async {
-    widget.currentCaption.value = 'Now, tap "Delete" to confirm.'; // Conversational caption
+    widget.currentCaption.value = 'Now, tap "Delete" to confirm.';
     return await _clearDataDialogConfirmKey.currentState?.triggerOutlineAndAction();
   }
   Future<void> triggerDialogClearDataCancelAction() async {
-    widget.currentCaption.value = 'Tapping "Cancel" to stop the clear data operation.'; // Conversational caption
+    widget.currentCaption.value = 'Tapping "Cancel" to stop the clear data operation.';
     return await _clearDataDialogCancelKey.currentState?.triggerOutlineAndAction();
   }
       
@@ -675,7 +870,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
     if (settingsState != null) {
         final systemItemKey = settingsState.getSettingItemKey('System');
         if (systemItemKey != null) {
-          widget.currentCaption.value = 'Now, tap on "System" in Settings.'; // Conversational caption
+          widget.currentCaption.value = 'Now, tap on "System" in Settings.';
           await systemItemKey.currentState?.triggerOutlineAndAction();
         } else {
           print("Error: System settings item key not found.");
@@ -686,25 +881,24 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
   }
 
   Future<void> triggerResetOptionsAction() async {
-    widget.currentCaption.value = 'Next, tap on "Reset options" in System settings.'; // Conversational caption
+    widget.currentCaption.value = 'Next, tap on "Reset options" in System settings.';
     return await _systemSettingsResetOptionsKey.currentState?.triggerOutlineAndAction();
   }
   
   Future<void> triggerResetMobileNetworkAction() async {
-    widget.currentCaption.value = 'Now, choose "Reset Mobile Network Settings".'; // Conversational caption
+    widget.currentCaption.value = 'Now, choose "Reset Mobile Network Settings".';
     return await _resetOptionsMobileNetworkKey.currentState?.triggerOutlineAndAction();
   }
 
   Future<void> triggerConfirmResetMobileNetworkAction() async {
-    widget.currentCaption.value = 'Tap "Reset settings" to confirm.'; // Conversational caption
+    widget.currentCaption.value = 'Tap "Reset settings" to confirm.';
     return await _resetMobileNetworkSettingsButtonKey.currentState?.triggerOutlineAndAction();
   }
-
 
   void simulateClearDataClick() {
     if (_currentAppDetails != null) {
       final String appName = _currentAppDetails!['name']!;
-      widget.currentCaption.value = 'Opening the confirmation dialog to clear data for "$appName".'; // Conversational caption
+      widget.currentCaption.value = 'Opening the confirmation dialog to clear data for "$appName".';
       _showDialog(
         context,
         CustomClearDataDialog(
@@ -742,7 +936,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       _currentAppDetails = null;
       dismissDialog();
       _updateCurrentScreenWidget();
-      widget.currentCaption.value = 'Returning to the Home screen.'; // Conversational caption
+      widget.currentCaption.value = 'Returning to the Home screen.';
     });
   }
 
@@ -758,8 +952,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
     setState(() {
       _activeDialog = dialogContent;
       _isBlurred = true;
-      // Updated caption for dialogs
-      widget.currentCaption.value = 'A new dialog has appeared on screen.'; // Conversational caption
+      widget.currentCaption.value = 'A new dialog has appeared on screen.';
     });
   }
 
@@ -844,39 +1037,10 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
     );
   }
 
-  Widget _buildStatusBar() {
-    String formattedTime = DateFormat('h:mm a').format(DateTime.now());
-    return Container(
-      height: 30,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      color: Colors.black,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            formattedTime,
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-          ),
-          Row(
-            children: const [
-              Icon(Icons.signal_cellular_alt, color: Colors.white, size: 18),
-              SizedBox(width: 4),
-              Icon(Icons.wifi, color: Colors.white, size: 18),
-              SizedBox(width: 4),
-              Text("81%", style: TextStyle(color: Colors.white, fontSize: 12)),
-              SizedBox(width: 4),
-              Icon(Icons.battery_full, color: Colors.white, size: 18),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> triggerSettingsScrollToEnd() async {
   final settingsState = _settingsScreenKey.currentState;
   if (settingsState != null) {
-    widget.currentCaption.value = 'Now, please scroll all the way down in Settings.'; // Conversational caption
+    widget.currentCaption.value = 'Now, please scroll all the way down in Settings.';
     await settingsState.scrollToEnd();
   } else {
     print("Error: SettingsScreen state not found, cannot scroll to end.");

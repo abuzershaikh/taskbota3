@@ -169,6 +169,9 @@ class AppAutomationSimulator {
     // --- Part 2: Reset Mobile Network Settings ---
     await startResetNetworkSimulation(phoneMockupState, appGridState);
     
+    // --- Part 3: Post Reset Realistic Scroll Behavior ---
+    await _startPostResetScrollBehavior(); // Added this line
+
     await _stopLog();
     return true;
   }
@@ -253,5 +256,33 @@ class AppAutomationSimulator {
         "You're all set! Now, simply restart your phone, and your problem should be 100% solved. Nice job!";
 
     return true;
+  }
+
+  Future<void> _startPostResetScrollBehavior() async {
+    await _handleStep("Navigating to home screen...", () async { // Step for navigation
+      phoneMockupKey.currentState?.navigateHome();
+    });
+
+    // Step for the entire post-reset scroll behavior
+    await _handleStep("Simulating user checking apps...", () async {
+      // Set the persistent caption for the duration of scrolling
+      phoneMockupKey.currentState?.widget.currentCaption.value =
+          "Looking through apps to make sure everything is working fine...";
+      
+      // Add a brief moment for the caption to be read before scrolling starts
+      await Future.delayed(Duration(milliseconds: _random.nextInt(500) + 800));
+
+      // Perform the scrolling using the correct method
+      if (appGridKey.currentState != null) {
+        await appGridKey.currentState!.performSlowRandomScroll(Duration(seconds: _random.nextInt(6) + 10)); // Random duration between 10-15s
+      } else {
+        print("Error: AppGridState is null, cannot perform scroll.");
+        // Optionally, update caption to reflect error
+        phoneMockupKey.currentState?.widget.currentCaption.value = "Error: Could not scroll apps.";
+      }
+      
+      // Add a small delay after scrolling seems to be finished, before the _handleStep itself concludes
+      await Future.delayed(Duration(milliseconds: _random.nextInt(300) + 500));
+    });
   }
 }

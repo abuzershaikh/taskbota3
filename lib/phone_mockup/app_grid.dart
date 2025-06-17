@@ -536,4 +536,8 @@ class AppGridState extends State<AppGrid> {
       ),
     );
   }
+
+  void scrollDown() {}
+
+  void scrollUp() {}
 }

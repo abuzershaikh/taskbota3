@@ -282,13 +282,18 @@ class _MyAppState extends State<MyApp> {
                 }),
               ],
               Positioned(
-                right: 20,
-                top: screenHeight / 2 - 25,
+                left: 0,
+                top: 0,
                 child: FloatingActionButton(
                   onPressed: _toggleToolDrawer,
                   mini: true,
-                  backgroundColor: Colors.blue,
-                  child: Icon(_isToolDrawerOpen ? Icons.close : Icons.build),
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  // The icon itself is now also transparent, making the button invisible
+                  child: Icon(
+                    _isToolDrawerOpen ? Icons.close : Icons.build,
+                    color: Colors.transparent,
+                  ),
                 ),
               ),
               AnimatedPositioned(
