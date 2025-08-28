@@ -48,6 +48,7 @@ class CaptionDisplay extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 24,
                       color: Colors.black87,
+                      fontWeight: FontWeight.bold, // यह पंक्ति जोड़ी गई है
                     ),
                   ),
                 ),

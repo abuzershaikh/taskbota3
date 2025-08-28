@@ -9,7 +9,9 @@ import 'dart:io';
 import 'tool_drawer.dart';
 import 'command_service.dart';
 import 'command_controller.dart';
-import 'caption_display.dart';
+import 'caption_display.dart'; // Re-imported for the right-side display
+import 'phone_mockup/app_name.dart'; // For the left-side display
+import 'app_automation_simulator.dart'; // To instantiate it here
 
 void main() {
   runApp(const MyApp());
@@ -23,13 +25,18 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  final GlobalKey<PhoneMockupContainerState> _phoneMockupKey = GlobalKey<PhoneMockupContainerState>();
+  final GlobalKey<PhoneMockupContainerState> _phoneMockupKey =
+      GlobalKey<PhoneMockupContainerState>();
   final GlobalKey<AppGridState> _appGridKey = GlobalKey<AppGridState>();
 
   late final CommandService _commandService;
   late final CommandController _commandController;
+  late final AppAutomationSimulator _appAutomationSimulator;
 
-  final ValueNotifier<String> _currentCaption = ValueNotifier<String>('No action yet.');
+  // Two notifiers for the two displays
+  final ValueNotifier<String> _currentCaption =
+      ValueNotifier<String>('No action yet.');
+  final ValueNotifier<String> _currentAppName = ValueNotifier<String>('');
 
   File? _backgroundImage;
   File? _pickedImage;
@@ -51,28 +58,33 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _backgroundDecoration = _createRandomGradient(); // Updated function call
+    _backgroundDecoration = _createRandomGradient();
 
     _commandService = CommandService();
     _commandController = CommandController(_commandService, _phoneMockupKey);
+    _appAutomationSimulator = AppAutomationSimulator(
+      phoneMockupKey: _phoneMockupKey,
+      appGridKey: _appGridKey,
+      currentCaption: _currentCaption,
+      currentAppName: _currentAppName,
+    );
     _commandService.onNewPythonCommand = _commandController.processCommand;
     _commandService.startPolling();
   }
 
-  // Updated function to generate fully random gradients
   BoxDecoration _createRandomGradient() {
     final Random random = Random();
     final Color color1 = Color.fromARGB(
-      255, // Alpha (fully opaque)
-      random.nextInt(256), // Red (0-255)
-      random.nextInt(256), // Green (0-255)
-      random.nextInt(256), // Blue (0-255)
+      255,
+      random.nextInt(256),
+      random.nextInt(256),
+      random.nextInt(256),
     );
     final Color color2 = Color.fromARGB(
-      255, // Alpha (fully opaque)
-      random.nextInt(256), // Red (0-255)
-      random.nextInt(256), // Green (0-255)
-      random.nextInt(256), // Blue (0-255)
+      255,
+      random.nextInt(256),
+      random.nextInt(256),
+      random.nextInt(256),
     );
     
     return BoxDecoration(
@@ -86,7 +98,7 @@ class _MyAppState extends State<MyApp> {
 
   void _changeBackgroundGradient() {
     setState(() {
-      _backgroundDecoration = _createRandomGradient(); // Updated function call
+      _backgroundDecoration = _createRandomGradient();
     });
   }
 
@@ -164,6 +176,7 @@ class _MyAppState extends State<MyApp> {
   void dispose() {
     _commandService.stopPolling();
     _currentCaption.dispose();
+    _currentAppName.dispose();
     super.dispose();
   }
 
@@ -175,8 +188,9 @@ class _MyAppState extends State<MyApp> {
     const double frameBaseSize = 300.0;
     const double kTransparentHandleSize = 24.0;
     const double phoneMockupWidth = 300.0;
-    const double captionDisplayWidth = 250.0;
-    const double captionDisplayHeight = 150.0;
+    const double captionDisplayWidth = 400.0;
+    const double captionDisplayHeight = 250.0;
+    const double appNameDisplayHeight = 150.0;
     const double spacing = 20.0;
 
     return MaterialApp(
@@ -204,6 +218,13 @@ class _MyAppState extends State<MyApp> {
                   currentCaption: _currentCaption,
                 ),
               ),
+              // App Name Display on the LEFT
+              Positioned(
+                left: (screenWidth / 2) - (phoneMockupWidth / 2) - captionDisplayWidth - spacing,
+                top: (screenHeight / 2) - (appNameDisplayHeight / 2),
+                child: AppNameDisplay(currentAppName: _currentAppName),
+              ),
+              // Caption Display on the RIGHT
               Positioned(
                 left: (screenWidth / 2) + (phoneMockupWidth / 2) + spacing,
                 top: (screenHeight / 2) - (captionDisplayHeight / 2),
@@ -289,7 +310,6 @@ class _MyAppState extends State<MyApp> {
                   mini: true,
                   backgroundColor: Colors.transparent,
                   elevation: 0,
-                  // The icon itself is now also transparent, making the button invisible
                   child: Icon(
                     _isToolDrawerOpen ? Icons.close : Icons.build,
                     color: Colors.transparent,
@@ -303,6 +323,7 @@ class _MyAppState extends State<MyApp> {
                 top: 0,
                 bottom: 0,
                 child: ToolDrawer(
+                  appAutomationSimulator: _appAutomationSimulator,
                   pickedImage: _pickedImage,
                   onImageChanged: _onImageChanged,
                   onFrameImageChanged: _onFrameImageChanged,

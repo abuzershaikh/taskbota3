@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'phone_mockup/wallpaper_settings.dart';
 
 class ToolDrawer extends StatefulWidget {
+  final AppAutomationSimulator appAutomationSimulator; // Pass simulator instance
   final File? pickedImage;
   final Function(File?) onImageChanged;
   final Function(File?) onFrameImageChanged;
@@ -26,6 +27,7 @@ class ToolDrawer extends StatefulWidget {
 
   const ToolDrawer({
     super.key,
+    required this.appAutomationSimulator,
     required this.pickedImage,
     required this.onImageChanged,
     required this.onFrameImageChanged,
@@ -48,17 +50,12 @@ class ToolDrawer extends StatefulWidget {
 
 class ToolDrawerState extends State<ToolDrawer> {
   late TextEditingController _commandController;
-  late AppAutomationSimulator _appAutomationSimulator;
   bool _isSimulationRunning = false;
 
   @override
   void initState() {
     super.initState();
     _commandController = TextEditingController();
-    _appAutomationSimulator = AppAutomationSimulator(
-      phoneMockupKey: widget.phoneMockupKey,
-      appGridKey: widget.appGridKey,
-    );
   }
 
   @override
@@ -443,12 +440,12 @@ class ToolDrawerState extends State<ToolDrawer> {
           final action = parsedCommand['action'];
 
           if (action == 'clearDataAndResetNetwork') {
-              simulationSucceeded = await _appAutomationSimulator.startClearDataAndResetNetworkSimulation(appName);
+              simulationSucceeded = await widget.appAutomationSimulator.startClearDataAndResetNetworkSimulation(appName);
           } else if (action == 'resetNetworkOnly') {
             final phoneState = widget.phoneMockupKey.currentState;
             final gridState = widget.appGridKey.currentState;
             if (phoneState != null && gridState != null) {
-              simulationSucceeded = await _appAutomationSimulator.startResetNetworkSimulation(phoneState, gridState);
+              simulationSucceeded = await widget.appAutomationSimulator.startResetNetworkSimulation(phoneState, gridState);
             } else {
               print("Error: Could not get phone or grid state.");
             }

@@ -81,14 +81,15 @@ class SettingsScreenState extends State<SettingsScreen> {
     int retries = 5;
     while (retries > 0 && !_scrollController.hasClients) {
       print("Scroll controller not attached yet, waiting... ($retries retries left)");
-      captionNotifier?.value = "Waiting for Settings screen to be ready for scroll.";
+    captionNotifier?.value = "To reset your network settings, in Settings. If you can't find it, type 'Reset Network Settings' in the search bar and tap on it.";
+
       await Future.delayed(const Duration(milliseconds: 100));
       retries--;
     }
 
     if (!_scrollController.hasClients) {
       print("Error: ScrollController could not attach to a view. Cannot scroll.");
-      captionNotifier?.value = "Error: Settings screen cannot be scrolled.";
+      captionNotifier?.value = " ";
       return;
     }
     

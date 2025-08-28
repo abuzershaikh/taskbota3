@@ -4,7 +4,7 @@ import 'dart:io';
 import 'dart:math'; // Import for Random
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart'; // Import path_provider
+import 'package:path_provider/path_provider.dart';
 import 'phone_mockup/phone_mockup_container.dart';
 import 'phone_mockup/app_grid.dart';
 
@@ -15,7 +15,10 @@ class AppAutomationSimulator {
   final Stopwatch _stopwatch = Stopwatch();
   final List<Map<String, String>> _log = [];
 
-  // To hold info for the real-time log file
+  // Notifiers for the two display widgets
+  final ValueNotifier<String> currentCaption;
+  final ValueNotifier<String> currentAppName;
+
   File? _logFile;
   String _appNameForLog = '';
   String _simulationStartTimeForLog = '';
@@ -23,9 +26,10 @@ class AppAutomationSimulator {
   AppAutomationSimulator({
     required this.phoneMockupKey,
     required this.appGridKey,
+    required this.currentCaption,
+    required this.currentAppName,
   });
 
-  /// Initializes the log file, creating the directory in the user's Documents folder.
   Future<void> _startLog(String appName) async {
     _appNameForLog = appName;
     _simulationStartTimeForLog = DateTime.now().toIso8601String();
@@ -33,7 +37,6 @@ class AppAutomationSimulator {
     _stopwatch.reset();
     _stopwatch.start();
 
-    // Get the user's documents directory
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final logDirectory = Directory('${documentsDirectory.path}/commandlog');
 
@@ -47,12 +50,10 @@ class AppAutomationSimulator {
     final fileName = '${appName}_$formattedDate.json';
     _logFile = File('${logDirectory.path}/$fileName');
 
-    // Add the initial "start" entry
     _log.add({'timestamp': '00:00', 'step': 'Simulation Start'});
     await _updateLogFile();
   }
 
-  /// Writes the current log buffer to the file, overwriting it.
   Future<void> _updateLogFile() async {
     if (_logFile == null) return;
 
@@ -65,18 +66,16 @@ class AppAutomationSimulator {
     await _logFile!.writeAsString(jsonString);
   }
 
-  /// Finishes the logging process.
   Future<void> _stopLog() async {
     final elapsed = _stopwatch.elapsed;
     final timestamp =
         '${elapsed.inMinutes.toString().padLeft(2, '0')}:${(elapsed.inSeconds % 60).toString().padLeft(2, '0')}';
     _log.add({'timestamp': timestamp, 'step': 'Simulation Stop'});
     _stopwatch.stop();
-    await _updateLogFile(); // Write the final log state
+    await _updateLogFile();
     print("Log file updated at: ${_logFile?.path}");
   }
 
-  /// A helper function to print the current step, add realistic delays, and update the log in real-time.
   Future<void> _handleStep(String message, Future<void> Function() action) async {
     final elapsed = _stopwatch.elapsed;
     final timestamp =
@@ -84,20 +83,23 @@ class AppAutomationSimulator {
     print('$timestamp - $message');
     _log.add({'timestamp': timestamp, 'step': message});
 
-    await _updateLogFile(); // Update the log file in real-time
+    await _updateLogFile();
 
-    phoneMockupKey.currentState?.widget.currentCaption.value = message;
+    // Update the detailed caption
+    currentCaption.value = message;
     await Future.delayed(Duration(milliseconds: _random.nextInt(1000) + 700));
     await action();
     await Future.delayed(Duration(milliseconds: _random.nextInt(1500) + 1000));
   }
 
-  /// This is the main simulation method for the combined "clear data" and "reset network" flow.
   Future<bool> startClearDataAndResetNetworkSimulation(String appName) async {
     await _startLog(appName);
+    
+    // Set the app name for the left display
+    currentAppName.value = appName;
 
     print("Starting expanded simulation for command: '$appName clear data'");
-    phoneMockupKey.currentState?.widget.currentCaption.value =
+    currentCaption.value =
         "Let's start by clearing app data and then resetting network settings.";
 
     final phoneMockupState = phoneMockupKey.currentState;
@@ -105,7 +107,7 @@ class AppAutomationSimulator {
 
     if (phoneMockupState == null || appGridState == null) {
       print("Error: PhoneMockupContainerState or AppGridState is null. Cannot proceed.");
-      phoneMockupKey.currentState?.widget.currentCaption.value =
+      currentCaption.value =
           "Oops! The phone mockup isn't quite ready. Please try again.";
       await _stopLog();
       return false;
@@ -113,7 +115,7 @@ class AppAutomationSimulator {
 
     // --- Part 1: Clear App Data ---
     print("--- Starting Part 1: Clear App Data for $appName ---");
-    phoneMockupKey.currentState?.widget.currentCaption.value = "First, we'll clear the data for $appName.";
+    currentCaption.value = "First, we'll clear the data for $appName.";
 
     await _handleStep("Step 1: Go to your app", () async {
       await appGridState.scrollToApp(appName);
@@ -122,7 +124,7 @@ class AppAutomationSimulator {
     final appDetails = appGridState.getAppByName(appName);
     if (appDetails == null || appDetails.isEmpty) {
       print("Error: App '$appName' not found in grid.");
-      phoneMockupKey.currentState?.widget.currentCaption.value =
+      currentCaption.value =
           "Hmm, couldn't find '$appName'. Please make sure it's installed.";
       await _stopLog();
       return false;
@@ -139,7 +141,7 @@ class AppAutomationSimulator {
       await phoneMockupState.triggerDialogAppInfoAction();
     });
 
-    await _handleStep("Step 4: Wait for the App Info screen to open up.", () async {
+    await _handleStep("Step 4: This will take you to the App Info screen.", () async {
       await Future.delayed(Duration(milliseconds: _random.nextInt(2001) + 1000));
     });
 
@@ -147,7 +149,7 @@ class AppAutomationSimulator {
       await phoneMockupState.triggerAppInfoStorageCacheAction();
     });
 
-    await _handleStep("Step 6: Wait for a second while the storage screen loads.", () async {
+    await _handleStep("Step 6: You’ll now be on the Storage screen.", () async {
       await Future.delayed(Duration(milliseconds: _random.nextInt(2001) + 1000));
     });
 
@@ -160,27 +162,30 @@ class AppAutomationSimulator {
         () async {
       await phoneMockupState.triggerDialogClearDataConfirmAction();
     });
-
+    
     print("--- Part 1 Complete: Data cleared for $appName. ---");
-    phoneMockupKey.currentState?.widget.currentCaption.value =
-        "Great! We've successfully cleared the data for $appName.";
+    currentCaption.value =
+        "We've successfully cleared the data for $appName.";
     await Future.delayed(const Duration(seconds: 2));
 
     // --- Part 2: Reset Mobile Network Settings ---
     await startResetNetworkSimulation(phoneMockupState, appGridState);
     
     // --- Part 3: Post Reset Realistic Scroll Behavior ---
-    await _startPostResetScrollBehavior(); // Added this line
+    await _startPostResetScrollBehavior();
 
     await _stopLog();
+
+    // Clear the app name display only after all simulation actions are complete.
+    currentAppName.value = '';
+    
     return true;
   }
 
-  /// New simulation method specifically for resetting network settings.
   Future<bool> startResetNetworkSimulation(
       PhoneMockupContainerState phoneMockupState, AppGridState appGridState) async {
     print("--- Starting Part 2: Reset Mobile Network Settings ---");
-    phoneMockupKey.currentState?.widget.currentCaption.value =
+    currentCaption.value =
         "Now, let's move on to resetting your mobile network settings.";
 
     await _handleStep("Step 1: Go back to your Home Screen.", () async {
@@ -197,7 +202,7 @@ class AppAutomationSimulator {
 
       if (settingsAppKey == null || settingsAppDetails == null) {
         print("Error: Could not find key or details for 'Settings' app. Aborting action.");
-        phoneMockupKey.currentState?.widget.currentCaption.value =
+        currentCaption.value =
             "Hmm, couldn't find the Settings app. Please make sure it's available.";
         throw Exception("Settings app not found in grid");
       }
@@ -214,7 +219,7 @@ class AppAutomationSimulator {
       await phoneMockupState.triggerSettingsScrollToEnd();
     });
 
-    await _handleStep("Step 4: Give it a few seconds to load everything completely.", () async {
+    await _handleStep("Step 4: To reset your network settings, in Settings. If you can't find it, type 'Reset Network Settings' in the search bar and tap on it.", () async {
       await Future.delayed(const Duration(seconds: 5));
     });
 
@@ -227,7 +232,7 @@ class AppAutomationSimulator {
     });
 
     await _handleStep(
-        "Step 7: Here, choose Reset Mobile Network Settings. If you not find search on search bar reset network settings.",
+        "Step 7: Here, choose Reset Mobile Network Settings.",
         () async {
       await phoneMockupState.triggerResetMobileNetworkAction();
     });
@@ -241,47 +246,41 @@ class AppAutomationSimulator {
     });
 
     print("--- Part 2 Complete: Mobile network settings reset. ---");
-    phoneMockupKey.currentState?.widget.currentCaption.value =
-        "Great! Your mobile network settings have been reset.";
+    currentCaption.value =
+        "Great! Your mobile network settings have been reset. ";
     await Future.delayed(const Duration(seconds: 3));
 
     await _handleStep(
-        "Final Step: That’s it! Now just go back to your Home Screen — You’ve successfully cleared the app data and reset your mobile network settings. Nice job! You’re all set. and now restart your phone and then 100 percent problem solve.",
+        "Final Step: Go to Play Store, check if there's any update for the app, and update it.",
         () async {
       phoneMockupState.navigateHome();
     });
 
     print("All simulation actions complete.");
-    phoneMockupKey.currentState?.widget.currentCaption.value =
-        "You're all set! Now, simply restart your phone, and your problem should be 100% solved. Nice job!";
-
+    currentCaption.value =
+       "All steps are complete. Please check the Play Store for any app updates.";
+    
     return true;
   }
 
   Future<void> _startPostResetScrollBehavior() async {
-    await _handleStep("Navigating to home screen...", () async { // Step for navigation
+    await _handleStep("Step 10: Just restart your phone and the issue will be fixed 100%.", () async {
       phoneMockupKey.currentState?.navigateHome();
     });
 
-    // Step for the entire post-reset scroll behavior
-    await _handleStep("Simulating user checking apps...", () async {
-      // Set the persistent caption for the duration of scrolling
-      phoneMockupKey.currentState?.widget.currentCaption.value =
-          "Looking through apps to make sure everything is working fine...";
+    await _handleStep("Once you’ve followed all the steps, just restart your phone. The issue should be 100% fixed!", () async {
+      currentCaption.value =
+          "Once you’ve followed all the steps, just restart your phone. The issue should be 100% fixed!";
       
-      // Add a brief moment for the caption to be read before scrolling starts
       await Future.delayed(Duration(milliseconds: _random.nextInt(500) + 800));
 
-      // Perform the scrolling using the correct method
       if (appGridKey.currentState != null) {
-        await appGridKey.currentState!.performSlowRandomScroll(Duration(seconds: _random.nextInt(6) + 10)); // Random duration between 10-15s
+        await appGridKey.currentState!.performSlowRandomScroll(Duration(seconds: _random.nextInt(6) + 10));
       } else {
         print("Error: AppGridState is null, cannot perform scroll.");
-        // Optionally, update caption to reflect error
-        phoneMockupKey.currentState?.widget.currentCaption.value = "Error: Could not scroll apps.";
+        currentCaption.value = "Error: Could not scroll apps.";
       }
       
-      // Add a small delay after scrolling seems to be finished, before the _handleStep itself concludes
       await Future.delayed(Duration(milliseconds: _random.nextInt(300) + 500));
     });
   }

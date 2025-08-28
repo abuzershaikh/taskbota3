@@ -616,7 +616,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       case CurrentScreenView.resetMobileNetworkSettings:
         _currentAppScreenWidget = ResetMobileNetworkSettingsScreen(
           onBack: () {
-            widget.currentCaption.value = 'Returning from Reset Mobile Network Settings.';
+            widget.currentCaption.value = ' ';
             setState(() {
               _currentScreenView = CurrentScreenView.resetOptions;
               _updateCurrentScreenWidget();
@@ -648,7 +648,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       _handleAppTap(appName);
       widget.currentCaption.value = 'Tapping on "$appName" now.';
     } else if (cmd.contains('back')) {
-      widget.currentCaption.value = 'Tapping the back button.';
+      widget.currentCaption.value = ' ';
       if (_currentScreenView == CurrentScreenView.appInfo) {
         await triggerAppInfoBackButtonAction();
       } else if (_currentScreenView == CurrentScreenView.clearData) {
@@ -845,7 +845,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
     return await _clearDataClearCacheButtonKey.currentState?.triggerOutlineAndAction();
   }
   Future<void> triggerClearDataBackButtonAction() async {
-    widget.currentCaption.value = 'Tapping the "Back" button from Clear Data.';
+    widget.currentCaption.value = ' ';
     return await _clearDataBackButtonKey.currentState?.triggerOutlineAndAction();
   }
   Future<void> triggerDialogAppInfoAction() async {
@@ -936,7 +936,7 @@ class PhoneMockupContainerState extends State<PhoneMockupContainer> {
       _currentAppDetails = null;
       dismissDialog();
       _updateCurrentScreenWidget();
-      widget.currentCaption.value = 'Returning to the Home screen.';
+      widget.currentCaption.value = ' ';
     });
   }
 
