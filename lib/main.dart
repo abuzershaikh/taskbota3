@@ -3,7 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_box_transform/flutter_box_transform.dart';
-import 'package:phone_ui_training/phone_mockup/phone_mockup_container.dart';
+import 'package:zest_autodroid/phone_mockup/phone_mockup_container.dart';
+
 import 'phone_mockup/app_grid.dart';
 import 'dart:io';
 import 'tool_drawer.dart';

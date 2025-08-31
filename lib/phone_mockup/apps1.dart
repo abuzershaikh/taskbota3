@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:phone_ui_training/phone_mockup/clickable_outline.dart' show ClickableOutlineState, ClickableOutline; // Ensure this path is correct
+import 'package:zest_autodroid/phone_mockup/clickable_outline.dart' show ClickableOutlineState, ClickableOutline; // Ensure this path is correct
 
 class Apps1Screen extends StatefulWidget {
   final VoidCallback onBack;

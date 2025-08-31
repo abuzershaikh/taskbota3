@@ -1,6 +1,7 @@
 // File: lib/phone_mockup/clear_data_screen.dart
 import 'package:flutter/material.dart';
-import 'package:phone_ui_training/phone_mockup/custom_clear_data_dialog.dart';
+import 'package:zest_autodroid/phone_mockup/custom_clear_data_dialog.dart';
+import 'zest_autodroid/phone_mockup/custom_clear_data_dialog.dart';
 import 'clickable_outline.dart';
 import 'phone_mockup_container.dart'; // Import PhoneMockupContainer to access ValueNotifier
 
