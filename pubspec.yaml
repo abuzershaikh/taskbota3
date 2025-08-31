@@ -109,6 +109,7 @@ flutter:
 
   assets:
     - assets/icons/
+    - assets/addicon/
     - assets/wallpapers/
     - assets/taskbotz ai/icons/
     - assets/taskbotz ai/wallpaper/

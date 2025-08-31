@@ -5,6 +5,8 @@ import 'dart:math';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'clickable_outline.dart';
 import 'phone_mockup_container.dart';
 
@@ -36,9 +38,15 @@ class AppGridState extends State<AppGrid> {
   List<Map<String, String>> _bottomManagedApps = [];
   List<Map<String, String>> _appsForDisplay = [];
 
+  Future<void>? _initializationFuture;
+
   @override
   void initState() {
     super.initState();
+    _initializationFuture = _initialize();
+  }
+
+  Future<void> _initialize() async {
     _apps = _generateRandomAppSizes(_initialApps);
     for (var app in _apps) {
       final appName = app['name'];
@@ -47,7 +55,9 @@ class AppGridState extends State<AppGrid> {
       }
     }
     _organizeApps();
-    _loadIconsFromAssets();
+    await _loadIconsFromAssets();
+    await _loadIconsFromExternalDirectory();
+    // No need to call setState, FutureBuilder will trigger a rebuild
   }
 
   void _organizeApps() {
@@ -137,15 +147,18 @@ class AppGridState extends State<AppGrid> {
       final List<Map<String, String>> newlyFoundIcons = [];
       final existingIconPaths = _initialApps.map((app) => app['icon']).toSet();
 
+      final iconPathsToScan = ['assets/icons/', 'assets/addicon/'];
+
       for (var key in manifestMap.keys) {
-        if (key.startsWith('assets/icons/') &&
-            !existingIconPaths.contains(key)) {
-          String namePart = key.substring('assets/icons/'.length);
-          final dotIndex = namePart.lastIndexOf('.');
-          if (dotIndex != -1) {
-            namePart = namePart.substring(0, dotIndex);
+        for (var path in iconPathsToScan) {
+          if (key.startsWith(path) && !existingIconPaths.contains(key)) {
+            String namePart = key.substring(path.length);
+            final dotIndex = namePart.lastIndexOf('.');
+            if (dotIndex != -1) {
+              namePart = namePart.substring(0, dotIndex);
+            }
+            newlyFoundIcons.add({'name': namePart, 'icon': key});
           }
-          newlyFoundIcons.add({'name': namePart, 'icon': key});
         }
       }
 
@@ -161,6 +174,44 @@ class AppGridState extends State<AppGrid> {
       }
     } catch (e) {
       print('Error loading icons from assets: $e');
+    }
+  }
+
+  Future<void> _loadIconsFromExternalDirectory() async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final iconsDirPath = p.join(directory.path, 'ZestAutodroid', 'icons');
+      final iconsDir = Directory(iconsDirPath);
+
+      if (!await iconsDir.exists()) {
+        await iconsDir.create(recursive: true);
+        print('Created directory: $iconsDirPath');
+        return;
+      }
+
+      final List<Map<String, String>> foundIcons = [];
+      await for (var entity in iconsDir.list()) {
+        if (entity is File) {
+          final extension = p.extension(entity.path).toLowerCase();
+          if (['.png', '.jpg', '.jpeg'].contains(extension)) {
+            String name = p.basenameWithoutExtension(entity.path);
+            foundIcons.add({'name': name, 'icon': entity.path});
+          }
+        }
+      }
+
+      if (foundIcons.isNotEmpty) {
+        final currentAppNames = _apps.map((app) => app['name']).toSet();
+        final trulyNewIcons = foundIcons
+            .where((icon) => !currentAppNames.contains(icon['name']))
+            .toList();
+
+        if (trulyNewIcons.isNotEmpty) {
+          addIcons(trulyNewIcons);
+        }
+      }
+    } catch (e) {
+      print('Error loading icons from external directory: $e');
     }
   }
 
@@ -237,30 +288,8 @@ class AppGridState extends State<AppGrid> {
     {'name': 'Chrome', 'icon': 'assets/icons/chrome.png', 'version': '124.0.0.0'},
     {'name': 'Gmail', 'icon': 'assets/icons/gmail.png', 'version': '2024.04.28.623192461'},
     {'name': 'Maps', 'icon': 'assets/icons/maps.png', 'version': '11.125.0101'},
-    {'name': 'Settings', 'icon': 'assets/icons/settings.png', 'version': '1.0.0'},
-    {'name': 'Photos', 'icon': 'assets/icons/photos.png', 'version': '6.84.0.621017366'},
-    {'name': 'YouTube', 'icon': 'assets/icons/youtube.png', 'version': '19.18.33'},
-    {'name': 'Drive', 'icon': 'assets/icons/drive.png', 'version': '2.24.167.0.90'},
-    {'name': 'Calendar', 'icon': 'assets/icons/calendar.png', 'version': '2024.17.0-629237913-release'},
-    {'name': 'Clock', 'icon': 'assets/icons/clock.png', 'version': '8.2.0'},
-    {'name': 'Camera', 'icon': 'assets/icons/camera.png', 'version': '9.2.100.612808000'},
-    {'name': 'Play Store', 'icon': 'assets/icons/playstore.png', 'version': '40.6.31-21'},
-    {'name': 'Files', 'icon': 'assets/icons/files.png', 'version': '1.0.623214532'},
-    {'name': 'Calculator', 'icon': 'assets/icons/calculator.png', 'version': '8.2 (531942488)'},
-    {'name': 'Messages', 'icon': 'assets/icons/messages.png', 'version': '20240424_02_RC00.phone_dynamic'},
-    {'name': 'Phone', 'icon': 'assets/icons/phone.png', 'version': '124.0.0.612808000'},
-    {'name': 'Contacts', 'icon': 'assets/icons/contacts.png', 'version': '4.29.17.625340050'},
-    {'name': 'Weather', 'icon': 'assets/icons/weather.png', 'version': '1.0'},
-    {'name': 'Spotify', 'icon': 'assets/icons/spotify.png', 'version': '8.9.36.568'},
-    {'name': 'WhatsApp', 'icon': 'assets/icons/whatsapp.png', 'version': '2.24.10.74'},
-    {'name': 'Instagram', 'icon': 'assets/icons/instagram.png', 'version': '312.0.0.32.112'},
-    {'name': 'Netflix', 'icon': 'assets/icons/netflix.png', 'version': '8.100.1'},
-    {'name': 'Facebook', 'icon': 'assets/icons/facebook.png', 'version': '473.0.0.35.109'},
-    {'name': 'Twitter', 'icon': 'assets/icons/twitter.png', 'version': '10.37.0-release.0'},
-    {'name': 'Snapchat', 'icon': 'assets/icons/snapchat.png', 'version': '12.87.0.40'},
-    {'name': 'TikTok', 'icon': 'assets/icons/tiktok.png', 'version': '34.8.4'},
-    {'name': 'Pinterest', 'icon': 'assets/icons/pinterest.png', 'version': '11.20.0'},
-    {'name': 'Amazon', 'icon': 'assets/icons/amazon.png', 'version': '25.21.1.800'},
+    
+   
   ];
 
   List<Map<String, String>> _generateRandomAppSizes(
@@ -437,103 +466,118 @@ class AppGridState extends State<AppGrid> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: widget.wallpaperImage != null
-          ? BoxDecoration(
-              image: DecorationImage(
-                image: FileImage(widget.wallpaperImage!),
-                fit: BoxFit.cover,
+    return FutureBuilder<void>(
+      future: _initializationFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          return Container(
+            decoration: widget.wallpaperImage != null
+                ? BoxDecoration(
+                    image: DecorationImage(
+                      image: FileImage(widget.wallpaperImage!),
+                      fit: BoxFit.cover,
+                    ),
+                  )
+                : const BoxDecoration(
+                    color: Colors.white,
+                  ),
+            child: GridView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.all(16.0),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                crossAxisSpacing: 16.0,
+                mainAxisSpacing: 16.0,
+                childAspectRatio: 1.0,
               ),
-            )
-          : const BoxDecoration(
-              color: Colors.white,
-            ),
-      child: GridView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(16.0),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 3,
-          crossAxisSpacing: 16.0,
-          mainAxisSpacing: 16.0,
-          childAspectRatio: 1.0,
-        ),
-        itemCount: _appsForDisplay.length,
-        itemBuilder: (context, index) {
-          final app = _appsForDisplay[index];
-          final appName = app['name']!;
-          final String iconPath = app['icon']!;
+              itemCount: _appsForDisplay.length,
+              itemBuilder: (context, index) {
+                final app = _appsForDisplay[index];
+                final appName = app['name']!;
+                final String iconPath = app['icon']!;
 
-          Widget iconWidget;
-          if (iconPath.startsWith('assets/')) {
-            iconWidget = Image.asset(
-              iconPath,
-              width: 48,
-              height: 48,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                print("Error loading asset: $iconPath");
-                return const Icon(Icons.broken_image, size: 48);
-              },
-            );
-          } else {
-            iconWidget = Image.file(
-              File(iconPath),
-              width: 48,
-              height: 48,
-              fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                print("Error loading file: $iconPath - $error");
-                return const Icon(Icons.broken_image, size: 48);
-              },
-            );
-          }
-
-          final GlobalKey<ClickableOutlineState> itemKey =
-              appItemKeys[appName] ??
-                  (appItemKeys[appName] = GlobalKey<ClickableOutlineState>());
-
-          Future<void> appAction() async {
-            widget.phoneMockupKey.currentState?.handleAppLongPress(app);
-          }
-
-          return ClickableOutline(
-            key: itemKey,
-            action: appAction,
-            child: GestureDetector(
-              onTap: () {
-                if (widget.onAppTap != null) {
-                  widget.onAppTap!(app['name']!, itemDetails: app);
+                Widget iconWidget;
+                if (iconPath.startsWith('assets/')) {
+                  iconWidget = Image.asset(
+                    iconPath,
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      print("Error loading asset: $iconPath");
+                      return const Icon(Icons.broken_image, size: 48);
+                    },
+                  );
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text(
-                            "Tap action not configured for ${app['name']}.")),
+                  iconWidget = Image.file(
+                    File(iconPath),
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      print("Error loading file: $iconPath - $error");
+                      return const Icon(Icons.broken_image, size: 48);
+                    },
                   );
                 }
-              },
-              onLongPress: () {
-                widget.phoneMockupKey.currentState?.handleAppLongPress(app);
-              },
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  iconWidget,
-                  const SizedBox(height: 8),
-                  Text(
-                    appName.length > 9
-                        ? '${appName.substring(0, 9)}...'
-                        : appName,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, color: Colors.black),
+
+                final GlobalKey<ClickableOutlineState> itemKey =
+                    appItemKeys[appName] ??
+                        (appItemKeys[appName] =
+                            GlobalKey<ClickableOutlineState>());
+
+                Future<void> appAction() async {
+                  widget.phoneMockupKey.currentState?.handleAppLongPress(app);
+                }
+
+                return ClickableOutline(
+                  key: itemKey,
+                  action: appAction,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (widget.onAppTap != null) {
+                        widget.onAppTap!(app['name']!, itemDetails: app);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  "Tap action not configured for ${app['name']}.")),
+                        );
+                      }
+                    },
+                    onLongPress: () {
+                      widget.phoneMockupKey.currentState
+                          ?.handleAppLongPress(app);
+                    },
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        iconWidget,
+                        const SizedBox(height: 8),
+                        Text(
+                          appName.length > 9
+                              ? '${appName.substring(0, 9)}...'
+                              : appName,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.black),
+                        ),
+                      ],
+                    ),
                   ),
-                ],
-              ),
+                );
+              },
             ),
           );
-        },
-      ),
+        } else {
+          return const Center(child: CircularProgressIndicator());
+        }
+      },
     );
   }
 

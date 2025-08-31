@@ -1,4 +1,5 @@
 // File: lib/phone_mockup/clear_data_screen.dart
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:zest_autodroid/phone_mockup/custom_clear_data_dialog.dart';
 import 'zest_autodroid/phone_mockup/custom_clear_data_dialog.dart';
@@ -82,12 +83,35 @@ class ClearDataScreen extends StatelessWidget {
             const SizedBox(height: 20),
             Column(
               children: [
-                Image.asset(
-                  appIconPath,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                ),
+                Builder(builder: (context) {
+                  Widget iconWidget;
+                  if (appIconPath.startsWith('assets/')) {
+                    iconWidget = Image.asset(
+                      appIconPath,
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        print(
+                            "Error loading asset in ClearDataScreen: $appIconPath - $error");
+                        return const Icon(Icons.broken_image, size: 80);
+                      },
+                    );
+                  } else {
+                    iconWidget = Image.file(
+                      File(appIconPath),
+                      width: 80,
+                      height: 80,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        print(
+                            "Error loading file in ClearDataScreen: $appIconPath - $error");
+                        return const Icon(Icons.broken_image, size: 80);
+                      },
+                    );
+                  }
+                  return iconWidget;
+                }),
                 const SizedBox(height: 10),
                 Text(
                   appName,
